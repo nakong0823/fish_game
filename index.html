@@ -26,6 +26,13 @@
         <div id="bait" title="남은 미끼">🪱 <strong>10</strong></div>
         <div id="coins" title="보유 코인">🪙 <strong>0</strong></div>
       </div>
+      <!-- 시간대 인디케이터 (좌하단) -->
+      <div id="time-indicator" class="time-indicator">
+        <span class="ti-name" id="time-name">낮</span>
+        <span class="ti-dots">
+          <span class="ti-dot"></span><span class="ti-dot"></span><span class="ti-dot"></span><span class="ti-dot"></span>
+        </span>
+      </div>
 
       <!-- 토스트 영역 (PERFECT / FAIL / MISS / +점수) -->
       <div id="toast" class="toast hidden"></div>
@@ -37,7 +44,7 @@
     <!-- 결과 모달 (RESULT 상태) -->
     <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div class="modal-card">
-        <h2 id="modal-title">Case &amp; Reel · 출조 결과</h2>
+        <h2 id="result-title" class="result-title">Case &amp; Reel · 출조 결과</h2>
         <div class="result-hero">
           <p class="result-hero-label">SCORE</p>
           <p class="result-hero-score" id="final-score">0</p>
@@ -69,6 +76,29 @@
       </div>
     </div>
 
+    <!-- 일일 보너스 모달 (첫 출조 시) -->
+    <div id="daily-bonus" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="daily-title">
+      <div class="daily-card">
+        <h2 id="daily-title" class="daily-title">🎁 오늘의 출조 보너스</h2>
+        <p class="daily-streak" id="daily-streak">1일 연속 출조</p>
+        <p class="daily-bonus-line" id="daily-bonus-line">🪙 3 + 미끼 1</p>
+        <button id="daily-claim" class="primary">수령하고 출조 시작</button>
+      </div>
+    </div>
+
+    <!-- 일시정지 모달 (P / Esc) -->
+    <div id="pause" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+      <div class="pause-card">
+        <h2 id="pause-title" class="pause-title">⏸ 일시정지</h2>
+        <p class="pause-hint">P 또는 Esc 키로 재개</p>
+        <button id="btn-resume" class="primary">계속하기</button>
+        <button id="btn-quit" class="secondary">타이틀로</button>
+      </div>
+    </div>
+
+    <!-- 사운드 토글 -->
+    <button id="btn-sound" class="sound-toggle" aria-label="사운드 토글">🔊</button>
+
     <!-- CODEX 오버레이 (CODEX 상태) -->
     <div id="codex" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="codex-title">
       <div class="codex-wrapper">
@@ -76,6 +106,7 @@
           <h2 id="codex-title">CODEX · <span id="codex-title-region">도감</span></h2>
           <p class="codex-rate">수집 <strong id="codex-rate">0 / 0</strong></p>
         </div>
+        <p class="codex-live" id="codex-live" style="display:none">⭐ 이번 주의 대물: <strong id="codex-live-name"></strong></p>
         <div id="codex-list" class="codex-list"></div>
         <button id="btn-codex-close" class="secondary">닫기</button>
       </div>
@@ -87,6 +118,7 @@
         <h1>Case &amp; Reel</h1>
         <p class="tagline">CAST · BITE · REEL</p>
         <p class="hint">스페이스 / 클릭으로 시작</p>
+        <span id="title-streak" class="title-streak" style="display:none">🔥 1일 연속</span>
         <div class="title-buttons">
           <button id="btn-shop-title" class="secondary">SHOP</button>
           <button id="btn-codex-title" class="secondary">CODEX</button>

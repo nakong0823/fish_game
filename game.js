@@ -195,6 +195,12 @@
     const mouse = { down: false };
 
     function onKeyDown(e) {
+      // PAUSE 토글: P / Escape (단, 입력란/모달 입력은 무시)
+      if (e.code === 'KeyP' || e.code === 'Escape') {
+        e.preventDefault();
+        togglePause();
+        return;
+      }
       if (e.code === 'Space' || e.code === 'Enter') {
         if (!keys.has(e.code)) {
           keys.add(e.code);
@@ -231,6 +237,18 @@
     window.addEventListener('mousedown', onMouseDown);
     window.addEventListener('mouseup', onMouseUp);
     window.addEventListener('contextmenu', onContextMenu);
+    // 터치 어댑터 (모바일) — mousedown/up 과 동일하게 처리
+    function onTouchStart(e) {
+      if (e.touches && e.touches.length > 1) return; // 멀티터치 무시
+      e.preventDefault();
+      actionOnPress();
+    }
+    function onTouchEnd(e) {
+      e.preventDefault();
+      actionOnRelease();
+    }
+    window.addEventListener('touchstart', onTouchStart, { passive: false });
+    window.addEventListener('touchend', onTouchEnd, { passive: false });
 
     return {
       isPressed() { return mouse.down || keys.has('Space') || keys.has('Enter'); },
@@ -257,6 +275,7 @@
   const elModal   = document.getElementById('modal');
   const elShop    = document.getElementById('shop');
   const elCodex   = document.getElementById('codex');
+  const elPause   = document.getElementById('pause');
   const elFinalS  = document.getElementById('final-score');
   const elFinalC  = document.getElementById('final-catch');
   const btnAgain  = document.getElementById('again');
@@ -266,7 +285,7 @@
   const btnCodexClose = document.getElementById('btn-codex-close');
 
   // 게임 상태
-  const STATE = { TITLE: 'TITLE', PLAY: 'PLAY', RESULT: 'RESULT', SHOP: 'SHOP', CODEX: 'CODEX' };
+  const STATE = { TITLE: 'TITLE', PLAY: 'PLAY', RESULT: 'RESULT', SHOP: 'SHOP', CODEX: 'CODEX', PAUSE: 'PAUSE' };
   const PHASE = {
     IDLE: 'IDLE',
     CASTING: 'CASTING',
@@ -297,8 +316,11 @@
     maxCombo: 0,           // 최장 콤보
     flurryCount: 0,        // 이번 판 FLURRY 발동 횟수
     flurryLeft: 0,         // FLURRY 남은 시간(초)
+    megaFlurry: false,     // MEGA FLURRY (×3) 활성 여부
     lastCatchT: 0,         // 마지막 catch 시각(누적)
     baitZeroT: 0,          // 미끼 0 긴장 연출 남은 시간
+    inGameT: 0,            // 게임 내 누적 시간(초) — 시간대 자동 순환용
+    pauseT: 0,             // 일시정지 누적 시간(초)
 
     // 페이즈별 타이머
     castT: 0,        // CASTING: 핑퐁 누적 시간
@@ -319,6 +341,25 @@
   // ----------------------------------------------------------
   // 상태/페이즈 전환
   // ----------------------------------------------------------
+  let prevState = null;  // PAUSE 진입 전 상태 기억
+  let prevPhase = null;
+  function togglePause() {
+    if (game.state === STATE.PAUSE) {
+      // 재개
+      changeState(prevState || STATE.PLAY);
+      if (sound && sound.resumeOcean) sound.resumeOcean();
+    } else if (game.state === STATE.PLAY) {
+      // 일시정지
+      prevState = STATE.PLAY;
+      prevPhase = game.phase;
+      changeState(STATE.PAUSE);
+      if (sound && sound.pauseOcean) sound.pauseOcean();
+    } else if (game.state === STATE.SHOP || game.state === STATE.CODEX) {
+      // 상점/도감에서도 일시정지 → 그냥 닫고 타이틀로
+      changeState(STATE.TITLE);
+    }
+  }
+
   function changeState(next) {
     if (game.state === next) return;
     game.state = next;
@@ -327,6 +368,7 @@
       elModal.classList.add('hidden');
       elShop.classList.add('hidden');
       elCodex.classList.add('hidden');
+      elPause.classList.add('hidden');
     } else if (next === STATE.PLAY) {
       // 세션 초기화
       game.score = 0;
@@ -341,13 +383,18 @@
       game.maxCombo = 0;
       game.flurryCount = 0;
       game.flurryLeft = 0;
+      game.megaFlurry = false;
       game.lastCatchT = 0;
       game.baitZeroT = 0;
+      game.inGameT = 0;
+      game.pauseT = 0;
+      timeOfDay = 1; // 새 판은 '낮'부터
       enterPhase(PHASE.IDLE);
       elTitle.classList.add('hidden');
       elModal.classList.add('hidden');
       elShop.classList.add('hidden');
       elCodex.classList.add('hidden');
+      elPause.classList.add('hidden');
     } else if (next === STATE.RESULT) {
       elFinalS.textContent = game.score;
       elFinalC.textContent = game.catchCount;
@@ -355,17 +402,26 @@
       elModal.classList.remove('hidden');
       elShop.classList.add('hidden');
       elCodex.classList.add('hidden');
+      elPause.classList.add('hidden');
     } else if (next === STATE.SHOP) {
       renderShop();
       elShop.classList.remove('hidden');
       elModal.classList.add('hidden');
       elTitle.classList.add('hidden');
       elCodex.classList.add('hidden');
+      elPause.classList.add('hidden');
     } else if (next === STATE.CODEX) {
       renderCodex();
       elCodex.classList.remove('hidden');
       elShop.classList.add('hidden');
       elModal.classList.add('hidden');
+      elTitle.classList.add('hidden');
+      elPause.classList.add('hidden');
+    } else if (next === STATE.PAUSE) {
+      elPause.classList.remove('hidden');
+      elShop.classList.add('hidden');
+      elModal.classList.add('hidden');
+      elCodex.classList.add('hidden');
       elTitle.classList.add('hidden');
     }
     updateHUD();
@@ -402,12 +458,15 @@
         w += CONFIG.bigFishBiteBonus;
       }
       game.biteLeft = w;
+      if (sound && sound.bite) sound.bite();
     } else if (next === PHASE.REELING) {
       game.reelPct = 0;
     } else if (next === PHASE.CATCH) {
       game.animT = CONFIG.catchAnimTime;
+      if (sound && sound.catch) sound.catch();
     } else if (next === PHASE.MISS) {
       game.animT = CONFIG.missAnimTime;
+      if (sound && sound.miss) sound.miss();
     }
   }
 
@@ -417,6 +476,8 @@
   // PRESS: TITLE→PLAY, BITE 윈도우 내 → REELING, CATCH/MISS 연출 중 무시, RESULT에서 한 판 더
   // RELEASE: CASTING → 판정
   function onPress() {
+    // 사운드 컨텍스트 resume (사용자 인터랙션 시점)
+    if (sound && sound.resume) sound.resume();
     if (game.state === STATE.TITLE) {
       changeState(STATE.PLAY);
       return;
@@ -447,6 +508,7 @@
       enterPhase(PHASE.CASTING);
     } else if (game.phase === PHASE.BITE) {
       // PULL 성공 → REELING
+      if (sound && sound.pull) sound.pull();
       enterPhase(PHASE.REELING);
     } else if (game.phase === PHASE.CATCH || game.phase === PHASE.MISS) {
       // 연출 중 입력 무시
@@ -464,6 +526,8 @@
       // 성공/실패 무관 미끼 -1
       game.bait = Math.max(0, game.bait - 1);
       game.lastCastPerfect = perfect;
+      // 캐스트 사운드
+      if (sound && sound.cast) sound.cast();
 
       if (inZone) {
         if (perfect) {
@@ -565,7 +629,26 @@
         _lastFlurryShown = Math.ceil(game.flurryLeft);
         updateHUD();
       }
-      if (game.flurryLeft === 0) updateHUD();
+      if (game.flurryLeft === 0) {
+        game.megaFlurry = false;
+        updateHUD();
+      }
+    }
+
+    // 시간대 자동 순환 (한 판 ≈ 100초 → 25초마다 한 단계)
+    // 첫 25초는 transition 보호 (낮→아침 점프 방지, 25초 시점부터 검사)
+    if (game.state === STATE.PLAY) {
+      game.inGameT += dt;
+      if (game.inGameT > 25) {
+        const newPhase = Math.floor(game.inGameT / 25) % 4;
+        if (newPhase !== timeOfDay) {
+          timeOfDay = newPhase;
+          liveEvent.adjustWeights();
+          updateHUD();
+          // 시간대 변경 토스트 (0.6초 표시)
+          showToast(TIME_NAMES[timeOfDay] + '이(가) 되었습니다', 'score');
+        }
+      }
     }
 
     // 미끼 0 긴장 카운트다운
@@ -592,69 +675,383 @@
     }
   }
 
-  function drawBoatAndSea() {
-    // 수평선
+  // ============================================================
+  // 환경 / 라이팅 (시간대별 하늘 + 바다 + 구름 + 해 + 안개)
+  // ============================================================
+  // 시간대(0=아침, 1=낮, 2=노을, 3=밤)에 따른 색 팔레트.
+  // 1차 프로토는 1(낮) 고정 — 후속에서 인게임 시간 진행/지역별 다양화 가능.
+  const TIME_NAMES = ['아침', '낮', '노을', '밤'];
+  let   timeOfDay = 1; // 현재 시간대 (0~3)
+  const SKY_PALETTES = [
+    { sky1: '#FFD9A8', sky2: '#FFB199', sun: '#FFEDA0', sunGlow: 'rgba(255,237,160,0.5)' }, // 아침
+    { sky1: '#7FC8E8', sky2: '#4FB3D9', sun: '#FFF1A0', sunGlow: 'rgba(255,241,160,0.35)' }, // 낮
+    { sky1: '#FF8C69', sky2: '#A4506B', sun: '#FF6040', sunGlow: 'rgba(255,96,64,0.45)' },  // 노을
+    { sky1: '#0F1F3D', sky2: '#1B3A5C', sun: '#E6E8F0', sunGlow: 'rgba(230,232,240,0.18)' },// 밤
+  ];
+  // 현재 시간대 팔레트 (drawSky 가 매 프레임 접근)
+  function currentSky() { return SKY_PALETTES[timeOfDay]; }
+
+  // 구름(파라미터 기반 — 3장 항상 다른 위치)
+  const CLOUDS = [
+    { x: 120, y: 50,  s: 1.0, op: 0.75 },
+    { x: 480, y: 32,  s: 1.3, op: 0.65 },
+    { x: 780, y: 60,  s: 0.9, op: 0.70 },
+  ];
+
+  function drawSky(t) {
+    // 하늘 그라데이션
     const horizon = H * 0.55;
-    ctx.fillStyle = '#FDF6E3';
+    const grad = ctx.createLinearGradient(0, 0, 0, horizon);
+    const sky = currentSky();
+    grad.addColorStop(0, sky.sky1);
+    grad.addColorStop(1, sky.sky2);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, horizon);
+
+    // 해 / 달 + 글로우
+    const sunX = 720, sunY = horizon - 36;
+    const grd = ctx.createRadialGradient(sunX, sunY, 6, sunX, sunY, 110);
+    grd.addColorStop(0, sky.sunGlow);
+    grd.addColorStop(1, 'rgba(255,237,160,0)');
+    ctx.fillStyle = grd;
+    ctx.fillRect(sunX - 110, sunY - 110, 220, 220);
+    ctx.fillStyle = sky.sun;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, 22, 0, Math.PI * 2);
+    ctx.fill();
+    // 부드러운 림 (1px highlight)
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // 구름 (둥근 덩어리 3-4개)
+    CLOUDS.forEach((c) => {
+      // 시간대별 구름 속도 (밤=정지, 아침=빠르게, 낮=보통, 노을=느리게)
+      const cloudSpeed = timeOfDay === 3 ? 0 : (timeOfDay === 0 ? 0.018 : (timeOfDay === 2 ? 0.007 : 0.012));
+      const cx = (c.x + t * cloudSpeed) % (W + 200) - 100;
+      const cy = c.y;
+      const s = c.s;
+      // 밤엔 구름 안 보이게 (alpha 0)
+      const baseOp = timeOfDay === 3 ? 0 : c.op;
+      ctx.fillStyle = `rgba(255,255,255,${baseOp})`;
+      ctx.beginPath();
+      ctx.arc(cx,            cy,        18 * s, 0, Math.PI * 2);
+      ctx.arc(cx + 18 * s,   cy - 6,    16 * s, 0, Math.PI * 2);
+      ctx.arc(cx + 36 * s,   cy,        14 * s, 0, Math.PI * 2);
+      ctx.arc(cx + 18 * s,   cy + 6,    18 * s, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // 별 (밤 0.85 / 노을 0.30 / 낮·아침 0 — 깜빡임)
+    if (timeOfDay === 2 || timeOfDay === 3) {
+      const baseAlpha = timeOfDay === 3 ? 0.85 : 0.30;
+      const STARS = [
+        { x: 120, y: 36, s: 1.0 }, { x: 200, y: 70, s: 0.8 },
+        { x: 320, y: 24, s: 1.1 }, { x: 430, y: 80, s: 0.9 },
+        { x: 560, y: 38, s: 1.0 }, { x: 660, y: 95, s: 0.7 },
+        { x: 780, y: 50, s: 1.2 }, { x: 880, y: 30, s: 0.9 },
+      ];
+      STARS.forEach((s, i) => {
+        const tw = Math.sin(t / (600 + i * 80)) * 0.5 + 0.5; // 0~1
+        const a = baseAlpha * (0.5 + tw * 0.5);
+        ctx.fillStyle = `rgba(255, 255, 255, ${a})`;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.s, 0, Math.PI * 2);
+        ctx.fill();
+        // 십자 빛 (가끔)
+        if (tw > 0.85) {
+          ctx.strokeStyle = `rgba(255, 255, 255, ${(tw - 0.85) * 3.5})`;
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(s.x - s.s * 3, s.y);
+          ctx.lineTo(s.x + s.s * 3, s.y);
+          ctx.moveTo(s.x, s.y - s.s * 3);
+          ctx.lineTo(s.x, s.y + s.s * 3);
+          ctx.stroke();
+        }
+      });
+    }
+
+    // 원경 안개 띠 (수평선 부근) — 시간대별 강도/높이
+    // 아침/밤은 짙은 안개, 노을/낮은 옅은
+    const hazeH = timeOfDay === 0 ? 40 : (timeOfDay === 3 ? 36 : 28);
+    const hazeAlpha = timeOfDay === 0 ? 0.32 : (timeOfDay === 3 ? 0.28 : 0.18);
+    const hazeColor = timeOfDay === 3 ? '180, 200, 220' : '255, 255, 255';
+    const haze = ctx.createLinearGradient(0, horizon - hazeH, 0, horizon + 4);
+    haze.addColorStop(0, 'rgba(255,255,255,0)');
+    haze.addColorStop(1, `rgba(${hazeColor},${hazeAlpha})`);
+    ctx.fillStyle = haze;
+    ctx.fillRect(0, horizon - hazeH, W, hazeH + 4);
+  }
+
+  function drawWhaleShadow(t) {
+    // 원경에 가끔 지나가는 고래/물고기 그림자 (수면 아래)
+    const period = 14000; // 14초 주기
+    const phase = ((t % period) / period);
+    if (phase > 0.6) return; // 잠수 중
+    const x = (phase / 0.6) * (W + 200) - 100;
+    const y = H * 0.55 + 28 + Math.sin(phase * 8) * 3;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = 'rgba(20, 40, 60, 0.18)';
+    ctx.beginPath();
+    ctx.moveTo(-30, 0);
+    ctx.quadraticCurveTo(-15, -6, 0, -4);
+    ctx.quadraticCurveTo(20, -2, 28, 0);
+    ctx.quadraticCurveTo(20, 4, 0, 4);
+    ctx.quadraticCurveTo(-15, 6, -30, 0);
+    ctx.fill();
+    // 꼬리
+    ctx.beginPath();
+    ctx.moveTo(28, 0);
+    ctx.lineTo(36, -5);
+    ctx.lineTo(36, 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawBuoy(t) {
+    // 부표 — 오른쪽 멀리 작은 빨간 부표 (보이지 않을 정도 작은 디테일)
+    const x = 870, y = H * 0.55 + 8;
+    const bob = Math.sin(t / 800) * 1.5;
+    ctx.save();
+    ctx.translate(x, y + bob);
+    // 반쯤 잠긴 부분
+    ctx.fillStyle = '#C24A3A';
+    ctx.fillRect(-3, -2, 6, 8);
+    // 꼭대기
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(0, -4, 3, 0, Math.PI * 2);
+    ctx.fill();
+    // 잔물결
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(0, 3, 8, 2, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawBoatAndSea() {
+    const t = performance.now();
+    drawSky(t);
+
+    const horizon = H * 0.55;
+
+    // 바다 그라데이션 (수평선 → 가까운 바다)
+    const sea = ctx.createLinearGradient(0, horizon, 0, H);
+    sea.addColorStop(0, '#4FB3D9');
+    sea.addColorStop(0.5, '#2B7A9B');
+    sea.addColorStop(1, '#1F5C7A');
+    ctx.fillStyle = sea;
     ctx.fillRect(0, horizon, W, H - horizon);
 
-    // 파도 라인
-    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
-    ctx.lineWidth = 2;
-    for (let i = 0; i < 5; i++) {
-      const y = horizon + 12 + i * 22;
+    // 햇빛 반사 (해 위치에서 일직선, 살짝 흔들림)
+    const reflX = 720, reflTop = horizon;
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = '#FFF1A0';
+    ctx.beginPath();
+    for (let y = reflTop; y < H; y += 4) {
+      const t2 = (y - reflTop) / (H - reflTop);
+      const w = 60 * (1 - t2 * 0.8) + Math.sin(t / 200 + y * 0.1) * 8;
+      ctx.moveTo(reflX - w, y);
+      ctx.lineTo(reflX + w, y);
+    }
+    ctx.fill();
+    ctx.restore();
+
+    // 고래 그림자 (원경 디테일)
+    drawWhaleShadow(t);
+
+    // 파도 라인 6개 + 가까운 파도 (더 큰 진폭)
+    // 시간대별 파도 속도 (밤=0.3 잔잔, 노을=0.7, 낮=1.0, 아침=1.1 활발)
+    const waveSpeed = timeOfDay === 3 ? 0.3 : (timeOfDay === 2 ? 0.7 : (timeOfDay === 0 ? 1.1 : 1.0));
+    for (let i = 0; i < 6; i++) {
+      const y = horizon + 8 + i * 22;
+      const amp = i < 3 ? 1.5 : 3.5;
+      const speed = i < 3 ? 0.6 : 0.4;
+      const op = i < 3 ? 0.35 : 0.55;
+      ctx.strokeStyle = `rgba(255,255,255,${op})`;
+      ctx.lineWidth = i < 3 ? 1.2 : 2;
       ctx.beginPath();
-      for (let x = 0; x <= W; x += 12) {
-        const yy = y + Math.sin((x + i * 30 + performance.now() / 600) * 0.04) * 2;
+      for (let x = 0; x <= W; x += 10) {
+        const yy = y + Math.sin((x + i * 30 + t / 600 * 100 * waveSpeed) * 0.04) * amp;
         if (x === 0) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
       }
       ctx.stroke();
     }
 
-    // 배 (왼쪽)
-    const bx = 110, by = horizon - 8;
-    ctx.fillStyle = '#F4A261';   // sand
+    // 부표
+    drawBuoy(t);
+
+    // ─── 플레이어 보트 (왼쪽 가운데) ───
+    const bx = 110, by = horizon - 6;
+    // 보트 그림자 (수면 위) — 시간대별 길이/방향
+    // 아침/노을: 길고 옆으로(서쪽/동쪽), 정오: 짧고 바로 아래, 밤: 거의 안 보임
+    const shadow = timeOfDay === 0
+      ? { dx: -14, rx: 80, ry: 5, a: 0.22 }   // 아침 — 서쪽 그림자
+      : timeOfDay === 1
+      ? { dx:  0,  rx: 56, ry: 7, a: 0.30 }   // 정오 — 바로 아래
+      : timeOfDay === 2
+      ? { dx:  14, rx: 80, ry: 5, a: 0.22 }   // 노을 — 동쪽 그림자
+      : { dx:  0,  rx: 50, ry: 6, a: 0.18 };    // 밤 — 옅고 짧게
+    ctx.fillStyle = `rgba(20, 40, 60, ${shadow.a})`;
+    ctx.beginPath();
+    ctx.ellipse(bx + shadow.dx, by + 28, shadow.rx, shadow.ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // 보트 선체 (반원)
+    ctx.fillStyle = '#F4A261';
     ctx.beginPath();
     ctx.moveTo(bx - 50, by);
-    ctx.lineTo(bx + 50, by);
-    ctx.lineTo(bx + 35, by + 24);
-    ctx.lineTo(bx - 35, by + 24);
+    ctx.quadraticCurveTo(bx - 40, by + 32, bx, by + 32);
+    ctx.quadraticCurveTo(bx + 40, by + 32, bx + 50, by);
     ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = '#2B7A9B';
-    ctx.lineWidth = 2;
+    // 보트 하이라이트
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(bx - 10, by + 4, 24, 4, 0, 0, Math.PI);
+    ctx.fill();
+    // 보트 윤곽
+    ctx.strokeStyle = '#1F5C7A';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(bx - 50, by);
+    ctx.quadraticCurveTo(bx - 40, by + 32, bx, by + 32);
+    ctx.quadraticCurveTo(bx + 40, by + 32, bx + 50, by);
     ctx.stroke();
+    // 보트 줄 (lantern)
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(bx - 36, by + 4, 4, 2);
+    ctx.fillRect(bx + 32, by + 4, 4, 2);
+    // 마스트
+    ctx.strokeStyle = '#5C3A21';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(bx, by - 4);
+    ctx.lineTo(bx, by - 78);
+    ctx.stroke();
+    // 돛 (작은 삼각형)
+    ctx.fillStyle = '#FDF8F0';
+    ctx.beginPath();
+    ctx.moveTo(bx, by - 78);
+    ctx.lineTo(bx + 26, by - 6);
+    ctx.lineTo(bx, by - 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#1F5C7A';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // 깃발 (돛대 꼭대기)
+    ctx.fillStyle = '#E76F51';
+    ctx.beginPath();
+    ctx.moveTo(bx, by - 78);
+    const flagWiggle = Math.sin(t / 240) * 2;
+    ctx.lineTo(bx + 10 + flagWiggle, by - 73);
+    ctx.lineTo(bx, by - 68);
+    ctx.closePath();
+    ctx.fill();
 
-    // 캐릭터 (작은 인형)
+    // 캐릭터
     ctx.fillStyle = '#264653';
     ctx.beginPath();
-    ctx.arc(bx, by - 14, 10, 0, Math.PI * 2);
+    // 머리 (살짝 그라데이션)
+    const headGrad = ctx.createRadialGradient(bx, by - 18, 1, bx, by - 18, 12);
+    headGrad.addColorStop(0, '#3A5A66');
+    headGrad.addColorStop(1, '#1F3A45');
+    ctx.fillStyle = headGrad;
+    ctx.beginPath();
+    ctx.arc(bx, by - 18, 9, 0, Math.PI * 2);
+    ctx.fill();
+    // 모자 (작은 챙)
+    ctx.fillStyle = '#E76F51';
+    ctx.beginPath();
+    ctx.ellipse(bx, by - 25, 11, 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(bx, by - 24, 6, Math.PI, Math.PI * 2);
     ctx.fill();
     // 몸통
-    ctx.fillRect(bx - 6, by - 6, 12, 18);
+    ctx.fillStyle = '#E76F51';
+    ctx.fillRect(bx - 6, by - 10, 12, 16);
+    // 팔 (캐스팅 중이면 위로)
+    if (game.phase === PHASE.CASTING) {
+      ctx.fillStyle = '#E76F51';
+      ctx.save();
+      ctx.translate(bx + 4, by - 8);
+      const castArm = Math.sin(t / 120) * 0.4;
+      ctx.rotate(-Math.PI / 3 + castArm);
+      ctx.fillRect(0, 0, 4, 18);
+      ctx.restore();
+    } else if (game.phase === PHASE.REELING) {
+      ctx.fillStyle = '#E76F51';
+      ctx.save();
+      ctx.translate(bx + 4, by - 8);
+      ctx.rotate(-Math.PI / 4);
+      ctx.fillRect(0, 0, 4, 18);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = '#E76F51';
+      ctx.fillRect(bx + 4, by - 6, 4, 12);
+    }
 
-    // 낚싯대 (캐스팅 중이면 위로 휨)
-    drawRod(bx, by - 6);
+    // 낚싯대
+    drawRod(bx, by - 8);
 
-    // 바늘 (낚싯바늘): 페이즈에 따라 위치/표시
+    // 바늘 / 어종
     drawActiveFish();
   }
 
   function drawRod(ox, oy) {
+    const t = performance.now();
     ctx.save();
     ctx.translate(ox, oy);
     let angle = -Math.PI / 4;
     if (game.phase === PHASE.CASTING) {
-      // 홀드 중 흔들기
-      angle = -Math.PI / 4 - Math.sin(performance.now() / 120) * 0.05;
+      angle = -Math.PI / 4 - Math.sin(t / 120) * 0.08;
+    } else if (game.phase === PHASE.DRIFT || game.phase === PHASE.BITE) {
+      // 대기 중에는 미세하게 떨림
+      angle = -Math.PI / 4 + Math.sin(t / 200) * 0.015;
+    } else if (game.phase === PHASE.REELING) {
+      // REEL 중 흔들림
+      const f = game.activeFish;
+      const big = f && f.reelDifficulty && f.reelDifficulty >= 1.3;
+      angle = -Math.PI / 4 + Math.sin(t / (big ? 60 : 110)) * (big ? 0.18 : 0.08);
     }
     ctx.rotate(angle);
-    ctx.strokeStyle = '#2B2A2A';
+    // 그라데이션 낚싯대
+    const rod = ctx.createLinearGradient(0, 0, 110, 0);
+    rod.addColorStop(0, '#2B2A2A');
+    rod.addColorStop(0.6, '#5C5A5A');
+    rod.addColorStop(1, '#E76F51');
+    ctx.strokeStyle = rod;
     ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(110, 0);
     ctx.stroke();
+    // 릴 (가까운 끝)
+    ctx.fillStyle = '#1F3A45';
+    ctx.beginPath();
+    ctx.arc(8, 0, 4, 0, Math.PI * 2);
+    ctx.fill();
+    // 릴 손잡이
+    if (game.phase === PHASE.REELING) {
+      ctx.save();
+      ctx.translate(8, 0);
+      ctx.rotate(t / 30);
+      ctx.strokeStyle = '#E76F51';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(7, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
     ctx.restore();
   }
 
@@ -666,89 +1063,286 @@
     const f = game.activeFish;
     if (!f) return;
 
-    // 바늘 위치: DRIFT/BITE는 바다 위 표류, REELING은 위로 올라오는 중
+    const t = performance.now();
+
+    // ─── 바늘 + 줄 + 어종 위치 계산 ───
     let hx, hy;
     if (game.phase === PHASE.REELING) {
-      hx = 220 + (1 - game.reelPct / 100) * 350;
-      hy = H * 0.55 + 10 - (game.reelPct / 100) * 30;
+      hx = 220 + (1 - game.reelPct / 100) * 320;
+      hy = H * 0.55 + 12 - (game.reelPct / 100) * 36;
     } else {
-      hx = 240 + Math.sin(performance.now() / 300) * 8;
-      hy = H * 0.62;
+      // DRIFT/BITE: 물결 + 약간의 수직 호흡
+      hx = 260 + Math.sin(t / 320) * 14;
+      hy = H * 0.62 + Math.sin(t / 220) * 2;
     }
 
-    // 줄
+    // ─── 줄 (메인 + 그림자) ───
     const isBig = f.reelDifficulty && f.reelDifficulty >= CONFIG.bigFishDiff;
-    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-    ctx.lineWidth = isBig ? 2.2 : 1;
+    // 그림자 줄
+    ctx.strokeStyle = 'rgba(0, 20, 40, 0.18)';
+    ctx.lineWidth = isBig ? 3.2 : 1.6;
     ctx.beginPath();
-    ctx.moveTo(110 + 80, H * 0.55 - 6);
+    ctx.moveTo(190, H * 0.55 + 2);
     if (isBig && game.phase === PHASE.DRIFT) {
-      const wave = Math.sin(performance.now() / 80) * 6;
-      ctx.lineTo((110 + 80 + hx) / 2, (H * 0.55 - 6 + hy) / 2 + wave);
+      const wave = Math.sin(t / 80) * 6;
+      ctx.lineTo((190 + hx) / 2, (H * 0.55 + 2 + hy) / 2 + wave + 1);
+    }
+    ctx.lineTo(hx, hy + 1);
+    ctx.stroke();
+    // 메인 줄
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = isBig ? 1.8 : 0.9;
+    ctx.beginPath();
+    ctx.moveTo(190, H * 0.55);
+    if (isBig && game.phase === PHASE.DRIFT) {
+      const wave = Math.sin(t / 80) * 6;
+      ctx.lineTo((190 + hx) / 2, (H * 0.55 + hy) / 2 + wave);
     }
     ctx.lineTo(hx, hy);
     ctx.stroke();
 
-    // 어종별 크기/모양
-    const bodySize = f.size === 'M' ? 1.35 : (f.size === 'S' ? 1.0 : 1.0);
+    // ─── 어종 본체 ───
+    const bodySize = f.size === 'M' ? 1.5 : (f.size === 'L' ? 1.8 : 1.0);
     const len = 18 * bodySize;
-    const tailW = f.tail === 'rounded' ? 5 : 8;
+    const tailW = f.tail === 'rounded' ? 6 : 9;
     const color = f.color || '#1a1a1a';
     const isReeling = game.phase === PHASE.REELING;
-    const w = isReeling ? (1 - game.reelPct / 100) * 0.6 + 0.4 : 1; // 0.4 → 1.0 흔들림
+
+    // REEL 중에는 통통 튀는 회전 + 스케일 흔들림
+    const baseRot = isReeling ? Math.sin(t / 90) * 0.5 : Math.sin(t / 700) * 0.05;
+    const squashY = isReeling ? 1 + Math.sin(t / 90) * 0.18 : 1;
+    const squashX = isReeling ? 1 - Math.sin(t / 90) * 0.10 : 1;
+    // DRIFT/BITE는 좌우 흔들림
+    const driftRot = (game.phase !== PHASE.REELING) ? Math.sin(t / 280) * 0.10 : 0;
+    const rot = baseRot + driftRot;
 
     ctx.save();
     ctx.translate(hx, hy);
-    ctx.scale(w, 1);
-    // body shape: oval (기본), slender (가늘게), stocky (두껍게)
+    ctx.rotate(rot);
+    ctx.scale(squashX, squashY);
+
+    // ── 그림자 (수면 아래) ──
+    ctx.fillStyle = 'rgba(20, 40, 60, 0.18)';
+    ctx.beginPath();
+    ctx.ellipse(0, 8, len * 1.05, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ── 본체 (체급별 모양) ──
+    let bodyW, bodyH, bodyOffY = 0;
     if (f.body === 'slender') {
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, len, len * 0.35, 0, 0, Math.PI * 2);
-      ctx.fill();
+      bodyW = len; bodyH = len * 0.32;
     } else if (f.body === 'stocky') {
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, len * 0.85, len * 0.7, 0, 0, Math.PI * 2);
-      ctx.fill();
+      bodyW = len * 0.95; bodyH = len * 0.78;
+      bodyOffY = 2;
     } else {
-      ctx.fillStyle = color;
+      bodyW = len * 1.05; bodyH = len * 0.55;
+    }
+    // 그라데이션 본체 (밝은 위 → 어두운 아래)
+    const bodyGrad = ctx.createLinearGradient(0, -bodyH, 0, bodyH);
+    bodyGrad.addColorStop(0, lighten(color, 0.35));
+    bodyGrad.addColorStop(0.5, color);
+    bodyGrad.addColorStop(1, darken(color, 0.25));
+    ctx.fillStyle = bodyGrad;
+    ctx.beginPath();
+    ctx.ellipse(0, bodyOffY, bodyW, bodyH, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // 윤곽
+    ctx.strokeStyle = darken(color, 0.35);
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+
+    // ── 등 지느러미 (dorsal) ──
+    if (f.body !== 'slender') {
+      ctx.fillStyle = darken(color, 0.20);
       ctx.beginPath();
-      ctx.ellipse(0, 0, len, len * 0.55, 0, 0, Math.PI * 2);
+      ctx.moveTo(-bodyW * 0.25, -bodyH * 0.7);
+      ctx.lineTo(0, -bodyH * 1.5);
+      ctx.lineTo(bodyW * 0.25, -bodyH * 0.7);
+      ctx.closePath();
       ctx.fill();
     }
-    // tail
-    ctx.fillStyle = color;
+
+    // ── 옆 지느러미 (pectoral) ──
+    ctx.fillStyle = darken(color, 0.15);
+    ctx.beginPath();
+    ctx.ellipse(bodyW * 0.25, bodyH * 0.2, bodyW * 0.25, bodyH * 0.4, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ── 줄무늬 (어종별) ──
+    if (f.id === 'mackerel') {
+      // 고등어 — 세로 줄무늬 5개
+      ctx.strokeStyle = 'rgba(40, 60, 80, 0.45)';
+      ctx.lineWidth = 0.9;
+      for (let i = 0; i < 5; i++) {
+        const sx = -bodyW * 0.7 + i * bodyW * 0.35;
+        ctx.beginPath();
+        ctx.moveTo(sx, -bodyH * 0.6);
+        ctx.quadraticCurveTo(sx + 1, 0, sx, bodyH * 0.6);
+        ctx.stroke();
+      }
+    } else if (f.id === 'horse_mackerel') {
+      // 전갱이 — 가는 세로 줄
+      ctx.strokeStyle = 'rgba(60, 90, 110, 0.35)';
+      ctx.lineWidth = 0.7;
+      for (let i = 0; i < 4; i++) {
+        const sx = -bodyW * 0.5 + i * bodyW * 0.32;
+        ctx.beginPath();
+        ctx.moveTo(sx, -bodyH * 0.5);
+        ctx.lineTo(sx, bodyH * 0.5);
+        ctx.stroke();
+      }
+    } else if (f.id === 'rockfish') {
+      // 우럭 — 반점 (작은 점들)
+      ctx.fillStyle = 'rgba(50, 20, 10, 0.45)';
+      for (let i = 0; i < 5; i++) {
+        const dx = -bodyW * 0.55 + (i % 3) * bodyW * 0.4;
+        const dy = -bodyH * 0.3 + Math.floor(i / 3) * bodyH * 0.6;
+        ctx.beginPath();
+        ctx.arc(dx, dy, 1.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // ── 옆 줄 (lateral line) ──
+    ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+    ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    ctx.moveTo(-bodyW * 0.8, bodyH * 0.1);
+    ctx.quadraticCurveTo(0, bodyH * 0.18, bodyW * 0.8, bodyH * 0.1);
+    ctx.stroke();
+
+    // ── 하이라이트 (위쪽) ──
+    ctx.fillStyle = 'rgba(255,255,255,0.30)';
+    ctx.beginPath();
+    ctx.ellipse(-bodyW * 0.15, -bodyH * 0.55, bodyW * 0.5, bodyH * 0.15, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ── 꼬리 ──
+    ctx.fillStyle = darken(color, 0.10);
     if (f.tail === 'rounded') {
       ctx.beginPath();
-      ctx.arc(-len, 0, tailW, 0, Math.PI * 2);
+      ctx.ellipse(-bodyW, 0, tailW, tailW * 0.9, 0, 0, Math.PI * 2);
       ctx.fill();
     } else {
       // forked
       ctx.beginPath();
-      ctx.moveTo(-len, 0);
-      ctx.lineTo(-len - tailW, -tailW * 0.7);
-      ctx.lineTo(-len - tailW * 0.4, 0);
-      ctx.lineTo(-len - tailW, tailW * 0.7);
+      ctx.moveTo(-bodyW, 0);
+      ctx.lineTo(-bodyW - tailW, -tailW * 0.8);
+      ctx.lineTo(-bodyW - tailW * 0.4, 0);
+      ctx.lineTo(-bodyW - tailW, tailW * 0.8);
+      ctx.closePath();
+      ctx.fill();
+      // 갈라진 부분 음영
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.beginPath();
+      ctx.moveTo(-bodyW, 0);
+      ctx.lineTo(-bodyW - tailW * 0.6, -tailW * 0.4);
+      ctx.lineTo(-bodyW - tailW * 0.3, 0);
+      ctx.lineTo(-bodyW - tailW * 0.6, tailW * 0.4);
       ctx.closePath();
       ctx.fill();
     }
-    // eye
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(len * 0.55, -len * 0.2, 1.6, 0, Math.PI * 2); ctx.fill();
+
+    // ── 아가미 (gill) ──
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+    ctx.lineWidth = 0.7;
+    ctx.beginPath();
+    ctx.moveTo(bodyW * 0.35, -bodyH * 0.4);
+    ctx.quadraticCurveTo(bodyW * 0.45, 0, bodyW * 0.35, bodyH * 0.4);
+    ctx.stroke();
+
+    // ── 눈 (흰자 + 검은 동공) ──
+    const eyeX = bodyW * 0.55, eyeY = -bodyH * 0.25;
+    // 흰자 (밝은 부분)
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(eyeX, eyeY, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth = 0.4;
+    ctx.stroke();
+    // 검은 동공
     ctx.fillStyle = '#1a1a1a';
-    ctx.beginPath(); ctx.arc(len * 0.55, -len * 0.2, 0.9, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(eyeX + 0.2, eyeY, 1.1, 0, Math.PI * 2);
+    ctx.fill();
+    // 하이라이트 (반사광)
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(eyeX - 0.2, eyeY - 0.4, 0.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ── 입 ──
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(eyeX + 2, eyeY + 0.8);
+    ctx.quadraticCurveTo(bodyW * 0.85, eyeY + 1.4, bodyW * 0.95, eyeY + 0.6);
+    ctx.stroke();
+
+    // ── 바늘 (입에 박힌 모양) ──
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(bodyW * 0.85, -bodyH * 0.3);
+    ctx.lineTo(bodyW * 1.1, -bodyH * 0.45);
+    ctx.moveTo(bodyW * 0.95, -bodyH * 0.3);
+    ctx.lineTo(bodyW * 0.95, -bodyH * 0.05);
+    ctx.stroke();
+
     ctx.restore();
 
-    // 어종 명찰 (DRIFT/BITE 페이즈에서만)
+    // ─── 어종 명찰 (DRIFT/BITE) ───
     if (game.phase !== PHASE.REELING) {
-      ctx.fillStyle = 'rgba(15,42,56,0.75)';
-      ctx.fillRect(hx - 30, hy - 28, 60, 16);
-      ctx.fillStyle = '#fff';
-      ctx.font = '600 11px -apple-system, "Apple SD Gothic Neo", sans-serif';
+      const isNew = !codex.isCaught(f.id);
+      const tagW = 60, tagH = 18;
+      const tagX = hx - tagW / 2, tagY = hy - 32;
+      // 그림자
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.fillRect(tagX + 1, tagY + 2, tagW, tagH);
+      // 배경
+      ctx.fillStyle = isNew ? 'rgba(255, 209, 102, 0.95)' : 'rgba(15, 42, 56, 0.85)';
+      ctx.fillRect(tagX, tagY, tagW, tagH);
+      // 윤곽
+      ctx.strokeStyle = isNew ? '#C24A3A' : '#FFD166';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(tagX, tagY, tagW, tagH);
+      // 텍스트
+      ctx.fillStyle = isNew ? '#1a1a1a' : '#fff';
+      ctx.font = '700 11px -apple-system, "Apple SD Gothic Neo", sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(f.name_ko, hx, hy - 17);
+      ctx.fillText(f.name_ko, hx, tagY + 13);
+      // NEW 배지
+      if (isNew) {
+        ctx.fillStyle = '#C24A3A';
+        ctx.fillRect(tagX, tagY - 6, 16, 6);
+        ctx.fillStyle = '#fff';
+        ctx.font = '700 6px -apple-system, sans-serif';
+        ctx.fillText('NEW', tagX + 8, tagY - 1);
+      }
     }
+  }
+
+  // 색상 밝게/어둡게 (헥스 유틸)
+  function lighten(hex, amt) {
+    const h = hex.replace('#', '');
+    let r = parseInt(h.substring(0, 2), 16);
+    let g = parseInt(h.substring(2, 4), 16);
+    let b = parseInt(h.substring(4, 6), 16);
+    r = Math.min(255, Math.round(r + (255 - r) * amt));
+    g = Math.min(255, Math.round(g + (255 - g) * amt));
+    b = Math.min(255, Math.round(b + (255 - b) * amt));
+    return '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('');
+  }
+  function darken(hex, amt) {
+    const h = hex.replace('#', '');
+    let r = parseInt(h.substring(0, 2), 16);
+    let g = parseInt(h.substring(2, 4), 16);
+    let b = parseInt(h.substring(4, 6), 16);
+    r = Math.max(0, Math.round(r * (1 - amt)));
+    g = Math.max(0, Math.round(g * (1 - amt)));
+    b = Math.max(0, Math.round(b * (1 - amt)));
+    return '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('');
   }
 
   function drawPhaseUI() {
@@ -765,32 +1359,110 @@
 
   function drawCastGauge() {
     const power = pingpong(game.castT, CONFIG.castPingpongSpeed, 100);
-    const x = W / 2 - 160, y = H - 70, w = 320, h = 22;
+    const x = W / 2 - 180, y = H - 76, w = 360, h = 26;
+    const t = performance.now();
 
+    // 외곽 그림자
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    roundRect(x - 3, y - 3, w + 6, h + 6, 8);
+    ctx.fill();
     // 배경
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
-    ctx.fillStyle = 'rgba(255,255,255,0.12)';
-    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = 'rgba(20, 40, 60, 0.85)';
+    roundRect(x, y, w, h, 6);
+    ctx.fill();
 
-    // 파워 채움
+    // 파워 채움 (광택 + 애니메이션 시프터)
     const pw = (power / 100) * w;
-    const grad = ctx.createLinearGradient(x, y, x + w, y);
-    grad.addColorStop(0, '#4FB3D9');
-    grad.addColorStop(0.5, '#FFD166');
-    grad.addColorStop(1, '#E76F51');
-    ctx.fillStyle = grad;
-    ctx.fillRect(x, y, pw, h);
+    if (pw > 0) {
+      // 메인 그라데이션 — PERFECT 구간 안이면 노란색 단색
+      const isInPerfect = (power >= CONFIG.perfectZone.min && power <= CONFIG.perfectZone.max);
+      const grad = ctx.createLinearGradient(x, y, x + w, y);
+      if (isInPerfect) {
+        // PERFECT 구간에 진입 — 채워진 영역이 노란색
+        grad.addColorStop(0, '#FFD166');
+        grad.addColorStop(0.5, '#FFE066');
+        grad.addColorStop(1, '#FFAA00');
+      } else {
+        grad.addColorStop(0, '#4FB3D9');
+        grad.addColorStop(0.5, '#FFD166');
+        grad.addColorStop(1, '#E76F51');
+      }
+      ctx.fillStyle = grad;
+      roundRect(x, y, pw, h, 6);
+      ctx.fill();
+      // 광택 (위쪽 하이라이트)
+      const shine = ctx.createLinearGradient(x, y, x, y + h);
+      shine.addColorStop(0, 'rgba(255,255,255,0.45)');
+      shine.addColorStop(0.5, 'rgba(255,255,255,0.0)');
+      shine.addColorStop(1, 'rgba(0,0,0,0.18)');
+      ctx.fillStyle = shine;
+      roundRect(x, y, pw, h, 6);
+      ctx.fill();
+      // 시프터 (이동하는 광택 라인)
+      const shifterX = (t / 8) % (w + 80) - 40;
+      if (shifterX > 0 && shifterX < pw) {
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.beginPath();
+        ctx.moveTo(x + shifterX, y + 2);
+        ctx.lineTo(x + shifterX + 12, y + 2);
+        ctx.lineTo(x + shifterX + 8, y + h - 2);
+        ctx.lineTo(x + shifterX - 4, y + h - 2);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
 
     // 성공 / PERFECT 영역 표시
-    drawZone(x + (CONFIG.castZone.min / 100) * w, x + (CONFIG.castZone.max / 100) * w, y, h, 'rgba(255,255,255,0.25)');
-    drawZone(x + (CONFIG.perfectZone.min / 100) * w, x + (CONFIG.perfectZone.max / 100) * w, y, h, 'rgba(231,111,81,0.6)');
+    drawZone(x + (CONFIG.castZone.min / 100) * w, x + (CONFIG.castZone.max / 100) * w, y, h, 'rgba(255,255,255,0.18)');
+    // PERFECT 구역은 펄스 + '거의 PERFECT!' 힌트 (퍼펙트 구간 진입 시)
+    const pX0 = x + (CONFIG.perfectZone.min / 100) * w;
+    const pX1 = x + (CONFIG.perfectZone.max / 100) * w;
+    drawZone(pX0, pX1, y, h, 'rgba(231,111,81,0.5)');
+    // PERFECT 구역 강조 (펄스)
+    const pulse = (Math.sin(t / 110) * 0.5 + 0.5);
+    ctx.fillStyle = `rgba(255, 209, 102, ${0.10 + pulse * 0.18})`;
+    roundRect(pX0 - 2, y - 2, pX1 - pX0 + 4, h + 4, 8);
+    ctx.fill();
+    // 진입 화살표 (게이지가 PERFECT 구역에 있을 때)
+    if (power >= CONFIG.perfectZone.min && power <= CONFIG.perfectZone.max) {
+      // 핑크/노랑 빛
+      ctx.fillStyle = `rgba(255, 237, 160, ${0.6 + pulse * 0.4})`;
+      ctx.fillRect(pX0, y - 4, pX1 - pX0, 3);
+      ctx.fillRect(pX0, y + h + 1, pX1 - pX0, 3);
+    }
+
+    // 영역 라벨 (PERFECT 영역)
+    ctx.fillStyle = 'rgba(231, 111, 81, 0.95)';
+    ctx.font = '700 10px -apple-system, "Apple SD Gothic Neo", sans-serif';
+    ctx.textAlign = 'center';
+    const pX = (pX0 + pX1) / 2;
+    ctx.fillText('PERFECT', pX, y + h + 14);
+    // 게이지가 PERFECT 구간 안에 있을 때 '거의 PERFECT!' 힌트
+    if (power >= CONFIG.perfectZone.min && power <= CONFIG.perfectZone.max) {
+      ctx.fillStyle = '#FFD166';
+      ctx.font = '800 11px -apple-system, "Apple SD Gothic Neo", sans-serif';
+      ctx.fillText('🎯 거의 PERFECT!', pX, y - 12);
+    }
 
     // 라벨
     ctx.fillStyle = '#fff';
-    ctx.font = '600 14px -apple-system, "Apple SD Gothic Neo", sans-serif';
+    ctx.font = '700 13px -apple-system, "Apple SD Gothic Neo", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('CAST 파워  (스페이스 떼면 발사)', W / 2, y - 8);
+    ctx.fillText('🎣 CAST 파워 · 스페이스 떼면 발사', W / 2, y - 10);
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
   }
 
   function drawZone(x0, x1, y, h, color) {
@@ -799,58 +1471,210 @@
   }
 
   function drawDriftIndicator() {
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.fillRect(W / 2 - 80, 40, 160, 26);
+    const t = performance.now();
+    // 미끼가 바다 위를 떠다니는 인디케이터 (찌와르르)
+    const cx = W / 2;
+    const cy = 56;
+    // 펄스 글로우
+    ctx.fillStyle = 'rgba(255, 255, 255, ' + (0.18 + Math.sin(t / 280) * 0.08) + ')';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 96 + Math.sin(t / 280) * 4, 18, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // 텍스트
+    ctx.fillStyle = 'rgba(15, 42, 56, 0.95)';
+    ctx.fillRect(cx - 90, cy - 14, 180, 28);
     ctx.fillStyle = '#fff';
-    ctx.font = '600 14px -apple-system, "Apple SD Gothic Neo", sans-serif';
+    ctx.font = '700 14px -apple-system, "Apple SD Gothic Neo", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('입질 대기…', W / 2, 58);
+    ctx.fillText('🎣 입질 대기…', cx, cy + 5);
+    // 미끼 흔들림 표시 (점 3개)
+    for (let i = 0; i < 3; i++) {
+      const d = (t / 200 + i * 0.4) % 1.5;
+      const a = Math.max(0, 1 - d / 1.5);
+      const dotX = cx + (i - 1) * 24 + Math.sin(t / 200 + i) * 3;
+      ctx.fillStyle = `rgba(255, 255, 255, ${a * 0.6})`;
+      ctx.beginPath();
+      ctx.arc(dotX, cy + 28 + d * 4, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   function drawBiteBar() {
-    const w = 360, h = 18;
+    const w = 360, h = 22;
     const x = W / 2 - w / 2, y = H / 2 - h / 2;
+    const t = performance.now();
 
-    // 노랑→빨강
+    // 화면 흔들림 (입질 임박 시)
     const ratio = 1 - (game.biteLeft / CONFIG.biteWindow);
-    const r = Math.floor(255);
-    const g = Math.floor(209 + (67 - 209) * ratio);
-    const b = Math.floor(102 + (70 - 102) * ratio);
-    ctx.fillStyle = `rgb(${r},${g},${b})`;
-    ctx.fillRect(x, y, w, h);
+    if (ratio > 0.5) {
+      const shake = (ratio - 0.5) * 6; // 최대 3px
+      const sx = (Math.random() - 0.5) * shake;
+      const sy = (Math.random() - 0.5) * shake;
+      ctx.save();
+      ctx.translate(sx, sy);
+    }
 
-    // 테두리
-    ctx.strokeStyle = '#1a1a1a';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, w, h);
+    // 외곽 그림자 + 라운드 박스
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    roundRect(x - 3, y - 3, w + 6, h + 6, 8);
+    ctx.fill();
+
+    // 배경 어두운 슬롯
+    ctx.fillStyle = 'rgba(20, 40, 60, 0.85)';
+    roundRect(x, y, w, h, 6);
+    ctx.fill();
+
+    // 그라데이션 노랑 → 빨강
+    const grad = ctx.createLinearGradient(x, y, x + w, y);
+    const r = 255;
+    const g = Math.floor(209 + (50 - 209) * ratio);
+    const b = Math.floor(102 + (60 - 102) * ratio);
+    grad.addColorStop(0, `rgb(${r},${Math.max(g, 130)},${b})`);
+    grad.addColorStop(1, `rgb(${r},${Math.max(g, 80)},${Math.max(b, 50)})`);
+    ctx.fillStyle = grad;
+    const progressW = ratio * w;
+    roundRect(x, y, Math.max(progressW, 4), h, 6);
+    ctx.fill();
+
+    // 광택 (상단)
+    const shine = ctx.createLinearGradient(x, y, x, y + h);
+    shine.addColorStop(0, 'rgba(255,255,255,0.4)');
+    shine.addColorStop(0.5, 'rgba(255,255,255,0.0)');
+    ctx.fillStyle = shine;
+    roundRect(x, y, Math.max(progressW, 4), h, 6);
+    ctx.fill();
+
+    // 펄스 (입질 임박 시 하트박동)
+    if (ratio > 0.6) {
+      const pulse = Math.sin(t / (ratio > 0.85 ? 80 : 140)) * 0.5 + 0.5;
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.4 + pulse * 0.4})`;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x - 2, y - 2, w + 4, h + 4);
+    }
 
     // 라벨
-    ctx.fillStyle = '#1a1a1a';
-    ctx.font = '700 16px -apple-system, "Apple SD Gothic Neo", sans-serif';
+    ctx.fillStyle = '#fff';
+    ctx.font = '900 18px -apple-system, "Apple SD Gothic Neo", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('입질!  PULL', W / 2, y - 8);
+    ctx.fillText('입질!  PULL  🐟', W / 2, y - 10);
+
+    // 곧 끝남! (ratio > 0.85) — 강한 빨강 + 화살표
+    if (ratio > 0.85) {
+      ctx.fillStyle = `rgba(231, 76, 60, ${0.6 + pulse * 0.4})`;
+      ctx.font = '900 14px -apple-system, "Apple SD Gothic Neo", sans-serif';
+      ctx.fillText('⚡ 곧 끝남!', W / 2, y - 30);
+    }
+
+    // 타이머 카운트다운
+    const tLeft = game.biteLeft.toFixed(1);
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(W / 2 - 22, y + h + 6, 44, 18);
+    ctx.fillStyle = '#fff';
+    ctx.font = '700 12px -apple-system, "Apple SD Gothic Neo", sans-serif';
+    ctx.fillText(tLeft + 's', W / 2, y + h + 19);
+
+    if (ratio > 0.5) ctx.restore();
   }
 
   function drawReelGauge() {
-    const w = 420, h = 24;
-    const x = W / 2 - w / 2, y = H - 80;
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
-    ctx.fillStyle = 'rgba(255,255,255,0.12)';
-    ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = '#E76F51';
-    ctx.fillRect(x, y, (game.reelPct / 100) * w, h);
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, w, h);
-
-    ctx.fillStyle = '#fff';
-    ctx.font = '600 14px -apple-system, "Apple SD Gothic Neo", sans-serif';
-    ctx.textAlign = 'center';
+    const w = 440, h = 28;
+    const x = W / 2 - w / 2, y = H - 88;
+    const t = performance.now();
     const f = game.activeFish;
-    const sub = f ? ` · ${f.name_ko}${f.reelDifficulty && f.reelDifficulty > 1 ? ` (×${f.reelDifficulty.toFixed(1)})` : ''}` : '';
+    const isBig = f && f.reelDifficulty && f.reelDifficulty >= CONFIG.bigFishDiff;
+
+    // 외곽 그림자
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    roundRect(x - 3, y - 3, w + 6, h + 6, 8);
+    ctx.fill();
+
+    // 어두운 슬롯
+    ctx.fillStyle = 'rgba(20, 40, 60, 0.85)';
+    roundRect(x, y, w, h, 6);
+    ctx.fill();
+
+    // 게이지 채움
+    const pw = (game.reelPct / 100) * w;
+    if (pw > 0) {
+      const grad = ctx.createLinearGradient(x, y, x + w, y);
+      if (isBig) {
+        grad.addColorStop(0, '#C24A3A');
+        grad.addColorStop(0.7, '#FFD166');
+        grad.addColorStop(1, '#FFEDA0');
+      } else {
+        grad.addColorStop(0, '#4FB3D9');
+        grad.addColorStop(0.6, '#5DA39A');
+        grad.addColorStop(1, '#FFD166');
+      }
+      ctx.fillStyle = grad;
+      roundRect(x, y, pw, h, 6);
+      ctx.fill();
+      // 광택
+      const shine = ctx.createLinearGradient(x, y, x, y + h);
+      shine.addColorStop(0, 'rgba(255,255,255,0.45)');
+      shine.addColorStop(0.5, 'rgba(255,255,255,0.0)');
+      shine.addColorStop(1, 'rgba(0,0,0,0.18)');
+      ctx.fillStyle = shine;
+      roundRect(x, y, pw, h, 6);
+      ctx.fill();
+    }
+
+    // 80% 페이크 위험 구간 (대물 한정) — 깜빡임
+    if (isBig && game.reelPct > 80) {
+      const blink = Math.sin(t / 80) * 0.5 + 0.5;
+      ctx.fillStyle = `rgba(231, 111, 81, ${0.3 + blink * 0.3})`;
+      ctx.fillRect(x + (80 / 100) * w, y, w - (80 / 100) * w, h);
+    }
+
+    // FULL 시 폰티
+    if (game.reelPct >= 100) {
+      const flash = (Math.sin(t / 80) * 0.5 + 0.5);
+      ctx.fillStyle = `rgba(255, 237, 160, ${0.3 + flash * 0.4})`;
+      ctx.fillRect(x - 4, y - 4, w + 8, h + 8);
+    }
+
+    // 라벨
+    ctx.fillStyle = '#fff';
+    ctx.font = '700 13px -apple-system, "Apple SD Gothic Neo", sans-serif';
+    ctx.textAlign = 'center';
+    const sub = f ? `${f.name_ko}${f.reelDifficulty && f.reelDifficulty > 1 ? ` (×${f.reelDifficulty.toFixed(1)})` : ''}` : '';
     const baseLabel = input && input.isPressed() ? Math.round(RT.reelBoostRate) : Math.round(RT.reelBaseRate);
-    ctx.fillText('REEL  ' + Math.floor(game.reelPct) + '%' + sub + '  [' + baseLabel + '%/s]', W / 2, y - 8);
+    ctx.fillText('REEL  ' + Math.floor(game.reelPct) + '% · ' + sub + '  [' + baseLabel + '%/s]', W / 2, y - 10);
+  }
+
+  // 워터 스파클 파티클 (CATCH 연출 중)
+  const splashParticles = [];
+  function spawnSplashParticles(x, y, color) {
+    for (let i = 0; i < 14; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 1.5 + Math.random() * 3.5;
+      splashParticles.push({
+        x, y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp - 1,
+        life: 1.0,
+        color: color || '#fff',
+        size: 1 + Math.random() * 2,
+        gravity: 0.15,
+      });
+    }
+  }
+  function updateAndDrawSplash() {
+    for (let i = splashParticles.length - 1; i >= 0; i--) {
+      const p = splashParticles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += p.gravity;
+      p.life -= 0.025;
+      if (p.life <= 0) {
+        splashParticles.splice(i, 1);
+        continue;
+      }
+      ctx.fillStyle = `rgba(255, 255, 255, ${p.life * 0.8})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   function drawCatchFx() {
@@ -859,30 +1683,94 @@
     const f = game.activeFish;
     const color = (f && f.color) ? f.color : '#FFD166';
     const sizeBoost = f && f.size === 'M' ? 1.4 : 1.0;
+    const isFirst = f && !codex.isCaught(f.id);
 
-    // 컬러 버스트 (어종 색)
-    ctx.fillStyle = hexToRgba(color, 0.45 * a);
+    // 어종 색의 큰 폭발
+    if (t < 0.15 && splashParticles.length === 0) {
+      spawnSplashParticles(W / 2, H * 0.62, color);
+    }
+    updateAndDrawSplash();
+
+    // 어종 색의 컬러 버스트
+    const burstGrad = ctx.createRadialGradient(W / 2, H * 0.55, 0, W / 2, H * 0.55, 200 * sizeBoost);
+    burstGrad.addColorStop(0, hexToRgba(color, 0.6 * a));
+    burstGrad.addColorStop(0.5, hexToRgba(color, 0.25 * a));
+    burstGrad.addColorStop(1, hexToRgba(color, 0));
+    ctx.fillStyle = burstGrad;
     ctx.beginPath();
-    ctx.arc(W / 2, H * 0.55, 30 + t * 90 * sizeBoost, 0, Math.PI * 2);
+    ctx.arc(W / 2, H * 0.55, 200 * sizeBoost, 0, Math.PI * 2);
     ctx.fill();
+
     // 노란 링
     ctx.strokeStyle = `rgba(255, 209, 102, ${0.9 * a})`;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.arc(W / 2, H * 0.55, 24 + t * 70 * sizeBoost, 0, Math.PI * 2);
+    ctx.arc(W / 2, H * 0.55, 24 + t * 90 * sizeBoost, 0, Math.PI * 2);
+    ctx.stroke();
+    // 두 번째 링 (지연)
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.5 * a * (1 - t)})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(W / 2, H * 0.55, 20 + t * 130 * sizeBoost, 0, Math.PI * 2);
     ctx.stroke();
 
-    // CATCH! 라벨
-    ctx.fillStyle = '#1a1a1a';
-    ctx.font = '800 30px -apple-system, "Apple SD Gothic Neo", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('CATCH!', W / 2, H * 0.55 - 64 - t * 18);
+    // 8방향 스파클 라인
+    if (a > 0.5) {
+      ctx.strokeStyle = `rgba(255, 237, 160, ${(a - 0.5) * 2})`;
+      ctx.lineWidth = 2;
+      const r1 = 30, r2 = 30 + t * 50 * sizeBoost;
+      for (let i = 0; i < 8; i++) {
+        const ang = (i / 8) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(W / 2 + Math.cos(ang) * r1, H * 0.55 + Math.sin(ang) * r1);
+        ctx.lineTo(W / 2 + Math.cos(ang) * r2, H * 0.55 + Math.sin(ang) * r2);
+        ctx.stroke();
+      }
+    }
 
-    // 어종 칭호 (작게)
+    // CATCH! 라벨
+    const catchScale = 1 + Math.sin(t * Math.PI) * 0.3;
+    ctx.save();
+    ctx.translate(W / 2, H * 0.55 - 64);
+    ctx.scale(catchScale, catchScale);
+    ctx.fillStyle = '#1a1a1a';
+    ctx.font = '900 36px -apple-system, "Apple SD Gothic Neo", sans-serif';
+    ctx.textAlign = 'center';
+    // 외곽선
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#FFD166';
+    ctx.strokeText('CATCH!', 0, 0);
+    ctx.fillText('CATCH!', 0, 0);
+    ctx.restore();
+
+    // 어종 칭호
     if (f) {
-      ctx.fillStyle = hexToRgba(color, 0.85);
-      ctx.font = '700 14px -apple-system, "Apple SD Gothic Neo", sans-serif';
-      ctx.fillText(`${f.name_ko}  ·  ${f.title || ''}`, W / 2, H * 0.55 - 38 - t * 12);
+      ctx.fillStyle = hexToRgba(color, 0.95);
+      ctx.font = '700 16px -apple-system, "Apple SD Gothic Neo", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${f.name_ko}  ·  ${f.title || ''}`, W / 2, H * 0.55 - 32);
+
+      // 사이즈 (cm)
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(W / 2 - 30, H * 0.55 - 18, 60, 18);
+      ctx.fillStyle = '#FFD166';
+      ctx.font = '700 13px -apple-system, "Apple SD Gothic Neo", sans-serif';
+      const lastRec = game.records[game.records.length - 1];
+      const sizeTxt = lastRec ? `${lastRec.sizeCm}cm` : '';
+      ctx.fillText(sizeTxt, W / 2, H * 0.55 - 5);
+
+      // 첫 어획 강조
+      if (isFirst) {
+        const popY = H * 0.55 + 30 - t * 16;
+        ctx.fillStyle = 'rgba(255, 209, 102, 0.95)';
+        ctx.fillRect(W / 2 - 70, popY - 14, 140, 22);
+        ctx.strokeStyle = '#C24A3A';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(W / 2 - 70, popY - 14, 140, 22);
+        ctx.fillStyle = '#1a1a1a';
+        ctx.font = '900 13px -apple-system, "Apple SD Gothic Neo", sans-serif';
+        ctx.fillText('🎉 LIFETIME FIRST!', W / 2, popY + 1);
+      }
     }
   }
 
@@ -897,7 +1785,16 @@
 
   function drawMissFx() {
     const t = 1 - (game.animT / CONFIG.missAnimTime);
-    ctx.fillStyle = `rgba(200, 200, 200, ${0.7 * (1 - t)})`;
+    // 잔잔한 동심원
+    ctx.strokeStyle = `rgba(200, 200, 200, ${0.5 * (1 - t)})`;
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc(W / 2, H * 0.55, 30 + i * 22 + t * 24, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    // 텍스트
+    ctx.fillStyle = `rgba(220, 220, 220, ${(1 - t)})`;
     ctx.font = '700 22px -apple-system, "Apple SD Gothic Neo", sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('…놓침', W / 2, H * 0.5 - t * 20);
@@ -909,7 +1806,18 @@
   function updateHUD() {
     elScore.textContent = game.score;
     elBait.textContent = game.bait;
-    if (elCoins) elCoins.textContent = economy.data.coins;
+    if (elCoins) {
+      const prev = parseInt(elCoins.textContent || '0', 10) || 0;
+      const next = economy.data.coins;
+      elCoins.textContent = next;
+      // 코인 증가 시 펄스
+      if (next > prev) {
+        elCoins.parentElement.classList.remove('coin-pulse');
+        // 강제 리플로우
+        void elCoins.parentElement.offsetWidth;
+        elCoins.parentElement.classList.add('coin-pulse');
+      }
+    }
     // 콤보 표시
     const comboEl = document.getElementById('combo');
     if (comboEl) {
@@ -924,11 +1832,27 @@
     const flurryEl = document.getElementById('flurry');
     if (flurryEl) {
       if (game.flurryLeft > 0) {
-        elFlurry.textContent = Math.ceil(game.flurryLeft) + 's';
+        elFlurry.textContent = (game.megaFlurry ? '💎 ' : '🔥 ') + Math.ceil(game.flurryLeft) + 's';
         flurryEl.classList.remove('hidden');
+        flurryEl.classList.toggle('mega', !!game.megaFlurry);
       } else {
         flurryEl.classList.add('hidden');
+        flurryEl.classList.remove('mega');
       }
+    }
+    // 시간대 인디케이터
+    const tiEl = document.getElementById('time-indicator');
+    const tiNameEl = document.getElementById('time-name');
+    if (tiEl && tiNameEl) {
+      tiNameEl.textContent = TIME_NAMES[timeOfDay] || '낮';
+      // 인디케이터 색 (시간대별)
+      tiEl.classList.remove('t-0','t-1','t-2','t-3');
+      tiEl.classList.add('t-' + timeOfDay);
+      // 점 4개 중 현재 시간대까지 on
+      const dots = tiEl.querySelectorAll('.ti-dot');
+      dots.forEach((d, i) => {
+        d.classList.toggle('on', i <= timeOfDay);
+      });
     }
   }
 
@@ -1112,9 +2036,12 @@
     if (rec.isNew) {
       const bonusCm = +((sizeCm - rec.prevCm) * CONFIG.recordBonusPerCm).toFixed(0);
       gain += bonusCm;
-      game.records.push({ id: f.id, name_ko: f.name_ko, sizeCm, prevCm: rec.prevCm, bonus: bonusCm });
+      const delta = sizeCm - rec.prevCm;
+      const isMega = rec.prevCm > 0 && delta >= 10; // 10cm 이상 신기록 → 메가
+      game.records.push({ id: f.id, name_ko: f.name_ko, sizeCm, prevCm: rec.prevCm, bonus: bonusCm, mega: isMega });
       // 신기록 비네트 (최초 등극도 동일 효과)
       flashVignette();
+      if (sound && sound.record) sound.record();
     }
 
     // 4) 도감 등록 (최초 1회)
@@ -1124,8 +2051,11 @@
     }
 
     // 5) 누적
-    // FLURRY 활성 시 ×1.5
-    if (game.flurryLeft > 0) {
+    // FLURRY 활성 시 ×1.5, MEGA FLURRY 시 ×3.0
+    if (game.megaFlurry && game.flurryLeft > 0) {
+      const extra = Math.round(gain * 2.0); // ×3.0 = gain + gain*2
+      gain += extra;
+    } else if (game.flurryLeft > 0) {
       const extra = Math.round(gain * (CONFIG.flurryMult - 1));
       gain += extra;
     }
@@ -1146,10 +2076,20 @@
     }
     game.lastCatchT = now;
     if (game.combo > game.maxCombo) game.maxCombo = game.combo;
-    if (game.combo === CONFIG.flurryAt) {
+
+    // 콤보 마일스톤 (5/10) — 5는 FLURRY(기본), 10은 MEGA FLURRY
+    if (game.combo === 5) {
       game.flurryLeft = CONFIG.flurryDuration;
       game.flurryCount += 1;
-      showToast('🔥 FLURRY ×' + CONFIG.flurryMult.toFixed(1) + ' (' + CONFIG.flurryDuration + 's)', 'perfect');
+      showToast('🔥 콤보 5!  FLURRY ×' + CONFIG.flurryMult.toFixed(1) + ' (' + CONFIG.flurryDuration + 's)', 'perfect');
+      if (sound && sound.combo) sound.combo();
+    } else if (game.combo === 10) {
+      // MEGA FLURRY — 배율 3배, 5초
+      game.flurryLeft = 5;
+      game.flurryCount += 1;
+      game.megaFlurry = true;
+      showToast('💎 콤보 10!  MEGA FLURRY ×3.0 (5s)', 'perfect');
+      if (sound && sound.mega) sound.mega();
     }
 
     // 7) 토스트
@@ -1157,8 +2097,10 @@
     if (rec.isNew && rec.prevCm > 0) msg = '신기록! ' + msg;
     else if (rec.isNew) msg = '신규 도감! ' + msg;
     if (game.combo > 1) msg = '×' + game.combo + ' ' + msg;
-    if (game.flurryLeft > 0 && game.combo < CONFIG.flurryAt) {
+    if (game.flurryLeft > 0 && game.combo < 5) {
       msg = '🔥 ' + msg;
+    } else if (game.megaFlurry) {
+      msg = '💎 ' + msg;
     }
     showToast(msg, rec.isNew ? 'perfect' : (game.flurryLeft > 0 ? 'perfect' : 'score'));
   }
@@ -1175,6 +2117,26 @@
     const statFlurry = document.getElementById('stat-flurry');
     if (statCombo) statCombo.textContent = '×' + game.maxCombo;
     if (statFlurry) statFlurry.textContent = game.flurryCount + '×';
+
+    // 칭호 (콤보 단계별)
+    const titleEl = document.getElementById('result-title');
+    if (titleEl) {
+      // 칭호 결정 (시간대 + 콤보 단계)
+      // 1) 콤보 최우선 (왕관)
+      let title;
+      if (game.maxCombo >= 7)       title = '👑 수문장';
+      else if (game.maxCombo >= 5)  title = '🎣 대어 사냥꾼';
+      else if (game.maxCombo >= 3)  title = '🛡️ 안정적 어부';
+      // 2) 시간대 칭호 (콤보 낮을 때)
+      else if (timeOfDay === 0)      title = '🌅 새벽 항해사';
+      else if (timeOfDay === 1)      title = '☀️ 낮 출조자';
+      else if (timeOfDay === 2)      title = '🌇 황혼 어부';
+      else if (timeOfDay === 3)      title = '🌙 심해 낚시꾼';
+      // 3) 기본
+      else if (game.catchCount >= 1) title = '🌊 첫 출조';
+      else                          title = '출조 결과';
+      titleEl.textContent = title;
+    }
 
     // 어황 요약
     const summaryEl = document.getElementById('result-summary');
@@ -1199,8 +2161,14 @@
       }
       game.records.forEach((r) => {
         const detail = r.prevCm > 0 ? `+${r.bonus}점` : '신규';
-        parts.push(`<span class="badge record big">${r.name_ko} ${r.sizeCm}cm <em>${detail}</em></span>`);
+        const cls = r.mega ? 'badge record big mega' : 'badge record big';
+        parts.push(`<span class="${cls}">${r.name_ko} ${r.sizeCm}cm <em>${detail}</em></span>`);
       });
+      // MEGA 신기록 별도 강조 (10cm 이상 갱신)
+      const megas = game.records.filter((r) => r.mega);
+      if (megas.length > 0) {
+        parts.unshift(`<span class="badge mega-record">💎 MEGA 신기록 ${megas[0].name_ko} +${+(megas[0].sizeCm - megas[0].prevCm).toFixed(1)}cm!</span>`);
+      }
       // 이번 판의 "최고 신기록" 1개 강조 (prev>0 인 것 중 가장 큰 delta)
       const upgrades = game.records.filter((r) => r.prevCm > 0);
       if (upgrades.length > 0) {
@@ -1231,8 +2199,17 @@
       const caught = active.filter((f) => codex.isCaught(f.id)).length;
       const pct = total > 0 ? Math.round((caught / total) * 100) : 0;
       const region = active[0] && active[0].region ? active[0].region : '';
-      rateEl.innerHTML = `<p class="modal-line">수집률 <strong>${caught}/${total}</strong> (${pct}%)</p>` +
-        (caught === total ? `<p class="modal-line muted">동해방파제 100%! SHOP/다음 지역 coming soon</p>` : '');
+      const liveFid = liveEvent.pick();
+      const liveFish = liveFid ? game.fish.find((f) => f.id === liveFid) : null;
+      const liveLine = liveFish ? `<p class="modal-line muted">⭐ 이번 주의 대물: <strong style="color:#C24A3A">${liveFish.name_ko}</strong></p>` : '';
+      const timeOfDayLabel = (typeof TIME_NAMES !== 'undefined' && TIME_NAMES[timeOfDay]) || '낮';
+      const timeLine = `<p class="modal-line muted">🕐 출조 시간대: <strong style="color:#2B7A9B">${timeOfDayLabel}</strong></p>`;
+      const streakLine = (daily.data.streak || 0) >= 1
+        ? `<p class="modal-line muted">🔥 연속 ${daily.data.streak}일 — 내일 또 만나요</p>` : '';
+      rateEl.innerHTML =
+        `<p class="modal-line">수집률 <strong>${caught}/${total}</strong> (${pct}%)</p>` +
+        (caught === total ? `<p class="modal-line muted">동해방파제 100%! SHOP/다음 지역 coming soon</p>` : '') +
+        liveLine + timeLine + streakLine;
     }
   }
   // RESULT 진입 시 changeState() 가 이 함수를 호출한다 (위 changeState RESULT 분기에서).
@@ -1243,7 +2220,21 @@
     const listEl = document.getElementById('shop-list');
     const coinsEl = document.getElementById('shop-coins');
     if (!listEl) return;
-    if (coinsEl) coinsEl.textContent = economy.data.coins;
+    if (coinsEl) {
+      const prev = parseInt(coinsEl.textContent || '0', 10) || 0;
+      const next = economy.data.coins;
+      coinsEl.textContent = next;
+      if (next > prev) {
+        coinsEl.parentElement.classList.remove('coin-pulse');
+        void coinsEl.parentElement.offsetWidth;
+        coinsEl.parentElement.classList.add('coin-pulse');
+      } else if (next < prev) {
+        // 코인 차감 시 빨간 펄스
+        coinsEl.parentElement.classList.remove('coin-pulse-down');
+        void coinsEl.parentElement.offsetWidth;
+        coinsEl.parentElement.classList.add('coin-pulse-down');
+      }
+    }
 
     listEl.innerHTML = '';
     economy.upgrades.forEach((u) => {
@@ -1282,6 +2273,16 @@
           applyUpgrades();
           renderShop();
           showToast('업그레이드 완료!', 'perfect');
+          if (sound && sound.buy) sound.buy();
+        } else {
+          // 코인 부족
+          const need = economy.nextCost(uid);
+          const have = economy.data.coins;
+          showToast('🪙 부족! ' + (need - have) + ' 코인 더 필요', 'fail');
+          // 버튼 빨간 펄스
+          btn.classList.remove('shop-buy-shake');
+          void btn.offsetWidth;
+          btn.classList.add('shop-buy-shake');
         }
       });
     });
@@ -1310,6 +2311,8 @@
     const listEl = document.getElementById('codex-list');
     const rateEl = document.getElementById('codex-rate');
     const titleEl = document.getElementById('codex-title-region');
+    const liveEl = document.getElementById('codex-live');
+    const liveNameEl = document.getElementById('codex-live-name');
     if (!listEl) return;
 
     const total = game.fish.length;
@@ -1317,6 +2320,20 @@
     const activeTotal = game.fish.filter((f) => !f.locked).length;
     const pct = activeTotal > 0 ? Math.round((caught / activeTotal) * 100) : 0;
     if (rateEl) rateEl.textContent = `${caught} / ${activeTotal}  (${pct}%)`;
+
+    // 라이브 배지 (이번 주의 대물)
+    const liveFid = liveEvent.pick();
+    if (liveFid && liveEl && liveNameEl) {
+      const liveFish = game.fish.find((f) => f.id === liveFid);
+      if (liveFish) {
+        liveNameEl.textContent = liveFish.name_ko;
+        liveEl.style.display = 'block';
+      } else {
+        liveEl.style.display = 'none';
+      }
+    } else if (liveEl) {
+      liveEl.style.display = 'none';
+    }
 
     // 현재 region (활성 어종 중 첫 region)
     const currentRegion = (game.fish.find((f) => !f.locked) || {}).region || '';
@@ -1334,7 +2351,8 @@
       card.className = 'codex-card'
         + (isLocked ? ' locked' : '')
         + (isCaught ? ' caught' : ' unseen')
-        + ' rarity-' + (f.rarity || 'common');
+        + ' rarity-' + (f.rarity || 'common')
+        + (!isLocked && f.id === liveFid ? ' live-feature' : '');
 
       if (isLocked) {
         // 잠금 카드
@@ -1376,6 +2394,271 @@
   }
 
   // ----------------------------------------------------------
+  // 사운드 (Web Audio API — 라이브러리 0, v0.3 8단계)
+  // ----------------------------------------------------------
+  // 배경 파도 루프 + 캐스트/REEL/PULL/CATCH/MISS/FLURRY 효과음.
+  // 사운드 토글은 localStorage 'case_reel.sound.v1' 에 저장.
+  const sound = {
+    ctx: null,
+    enabled: true,
+    oceanGain: null,
+    oceanSource: null,
+    soundKey: 'case_reel.sound.v1',
+
+    init() {
+      // 사용자 인터랙션 전에는 AudioContext가 suspended 일 수 있음 — resume 는 첫 PRESS 시.
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        this.ctx = new AC();
+        this._setupOcean();
+      } catch (e) {
+        console.warn('[Case&Reel] 사운드 초기화 실패', e.message);
+      }
+    },
+    resume() {
+      if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+    },
+    _setupOcean() {
+      if (!this.ctx) return;
+      // 파도 루프: 백색 잡음을 LPF + LFO 로 변조해 잔잔한 파도 생성
+      const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 4, this.ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.5;
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      const lpf = this.ctx.createBiquadFilter();
+      lpf.type = 'lowpass';
+      lpf.frequency.value = 400;
+      const lfo = this.ctx.createOscillator();
+      lfo.frequency.value = 0.18;
+      const lfoGain = this.ctx.createGain();
+      lfoGain.gain.value = 80;
+      lfo.connect(lfoGain);
+      lfoGain.connect(lpf.frequency);
+      const gain = this.ctx.createGain();
+      gain.gain.value = 0.06;
+      src.connect(lpf);
+      lpf.connect(gain);
+      gain.connect(this.ctx.destination);
+      src.start();
+      lfo.start();
+      this.oceanGain = gain;
+      this.oceanSource = src;
+    },
+    setEnabled(on) {
+      this.enabled = !!on;
+      try { localStorage.setItem(this.soundKey, this.enabled ? '1' : '0'); } catch (e) {}
+      if (this.oceanGain) this.oceanGain.gain.value = on ? 0.06 : 0;
+    },
+    loadEnabled() {
+      try {
+        const v = localStorage.getItem(this.soundKey);
+        if (v !== null) this.enabled = v === '1';
+      } catch (e) {}
+    },
+    // PAUSE 시 BGM fadeOut / 재개 시 fadeIn
+    pauseOcean() {
+      if (!this.ctx || !this.oceanGain) return;
+      const t = this.ctx.currentTime;
+      this.oceanGain.gain.cancelScheduledValues(t);
+      this.oceanGain.gain.setValueAtTime(this.oceanGain.gain.value, t);
+      this.oceanGain.gain.linearRampToValueAtTime(0, t + 0.4);
+    },
+    resumeOcean() {
+      if (!this.ctx || !this.oceanGain) return;
+      const t = this.ctx.currentTime;
+      const target = this.enabled ? 0.06 : 0;
+      this.oceanGain.gain.cancelScheduledValues(t);
+      this.oceanGain.gain.setValueAtTime(this.oceanGain.gain.value, t);
+      this.oceanGain.gain.linearRampToValueAtTime(target, t + 0.4);
+    },
+    // 사운드 이펙트 — 단발 사인/노이즈
+    _tone(freq, dur, type = 'sine', vol = 0.2, attack = 0.01, release = 0.05) {
+      if (!this.enabled || !this.ctx) return;
+      this.resume();
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(vol, t + attack);
+      g.gain.linearRampToValueAtTime(0, t + dur + release);
+      osc.connect(g);
+      g.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + dur + release + 0.02);
+    },
+    cast() { // 캐스트 — 휘익
+      this._tone(380, 0.18, 'triangle', 0.18, 0.005, 0.05);
+      this._tone(180, 0.12, 'sine', 0.10, 0.01, 0.04);
+    },
+    bite() { // 입질 — 찌르륵
+      this._tone(820, 0.06, 'square', 0.18, 0.003, 0.03);
+      this._tone(1200, 0.04, 'square', 0.10, 0.002, 0.02);
+    },
+    pull() { // PULL — 짧은 클릭
+      this._tone(520, 0.05, 'sine', 0.20, 0.002, 0.02);
+    },
+    reelTick() { // REEL 1틱 — 부드러운 휙
+      this._tone(220, 0.04, 'triangle', 0.10, 0.003, 0.02);
+    },
+    catch() { // CATCH — 밝은 차임
+      this._tone(880, 0.20, 'sine', 0.22, 0.005, 0.08);
+      this._tone(1320, 0.18, 'sine', 0.16, 0.01, 0.06);
+    },
+    miss() { // MISS — 둔탁한 띵
+      this._tone(180, 0.20, 'sine', 0.18, 0.005, 0.10);
+    },
+    combo() { // 콤보 5 — 상승 차임
+      this._tone(660, 0.10, 'sine', 0.20, 0.005, 0.05);
+      this._tone(990, 0.10, 'sine', 0.18, 0.01, 0.05);
+    },
+    mega() { // 콤보 10 — 화려한 차임
+      this._tone(660, 0.10, 'sine', 0.22, 0.005, 0.05);
+      this._tone(990, 0.10, 'sine', 0.22, 0.01, 0.05);
+      this._tone(1320, 0.12, 'sine', 0.18, 0.015, 0.06);
+    },
+    record() { // 신기록 — 경쾌한 2단
+      this._tone(990, 0.08, 'sine', 0.20, 0.005, 0.04);
+      setTimeout(() => this._tone(1320, 0.10, 'sine', 0.22, 0.005, 0.06), 80);
+    },
+    buy() { // 상점 구매 — 짧은 확인음
+      this._tone(880, 0.06, 'sine', 0.18, 0.003, 0.04);
+      this._tone(1320, 0.06, 'sine', 0.14, 0.01, 0.04);
+    },
+  };
+  sound.loadEnabled();
+  sound.init();
+
+  // ----------------------------------------------------------
+  // 일일 접속 (연속 접속일 + 첫 출조 보너스)
+  // ----------------------------------------------------------
+  // localStorage 'case_reel.daily.v1' = { lastYmd: 'YYYY-MM-DD', streak: N, claimedYmd: 'YYYY-MM-DD' }
+  const daily = {
+    key: 'case_reel.daily.v1',
+    data: { lastYmd: '', streak: 0, claimedYmd: '' },
+    load() {
+      try {
+        const raw = localStorage.getItem(this.key);
+        if (raw) this.data = JSON.parse(raw);
+      } catch (e) {}
+    },
+    save() {
+      try { localStorage.setItem(this.key, JSON.stringify(this.data)); } catch (e) {}
+    },
+    todayYmd() {
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    },
+    ymdDiffDays(ymd1, ymd2) {
+      // 두 YYYY-MM-DD 사이의 일수 차이
+      const a = new Date(ymd1 + 'T00:00:00');
+      const b = new Date(ymd2 + 'T00:00:00');
+      return Math.round((b - a) / 86400000);
+    },
+    // 오늘 첫 접속 시 streak 증가, 어제 접속이 아니면 1로 리셋
+    rollOver() {
+      const today = this.todayYmd();
+      if (this.data.lastYmd === today) return false; // 오늘 이미 카운트됨
+      if (!this.data.lastYmd) {
+        this.data.streak = 1;
+      } else {
+        const diff = this.ymdDiffDays(this.data.lastYmd, today);
+        if (diff === 1) this.data.streak = (this.data.streak || 0) + 1;
+        else this.data.streak = 1; // 하루 건너뛰면 리셋
+      }
+      this.data.lastYmd = today;
+      this.save();
+      return true; // streak 갱신됨
+    },
+    // 첫 출조 보너스 (오늘 아직 안 받음)
+    canClaim() {
+      return this.data.claimedYmd !== this.todayYmd();
+    },
+    // 보너스 계산: 1일차 +3코인, +1미끼 / 7일차 +20코인, +3미끼
+    bonus() {
+      const s = Math.max(1, this.data.streak || 1);
+      if (s >= 7) return { coins: 20, bait: 3, label: '🎁 7일 연속!  🪙 20 + 미끼 3' };
+      if (s >= 3) return { coins: 8,  bait: 1, label: '🎁 ' + s + '일 연속  🪙 8 + 미끼 1' };
+      return { coins: 3, bait: 1, label: '🎁 첫 출조  🪙 3 + 미끼 1' };
+    },
+    claim() {
+      if (!this.canClaim()) return null;
+      const b = this.bonus();
+      this.data.claimedYmd = this.todayYmd();
+      this.save();
+      return b;
+    },
+  };
+  daily.load();
+  daily.rollOver(); // 앱 부팅 시 오늘자 streak 갱신
+
+  // ----------------------------------------------------------
+  // 라이브 이벤트 (이번 주 대물)
+  // ----------------------------------------------------------
+  // 매주 월요일 0시 기준, 12종 중 1종을 '이번 주의 대물'로 선정.
+  // 동해에 종 가중치 5x (다음 지역 잠금 해제 전까지). 코덱스에 라이브 배지.
+  const liveEvent = {
+    key: 'case_reel.live.v1',
+    data: { weekKey: '', featureId: '' },
+    load() {
+      try {
+        const raw = localStorage.getItem(this.key);
+        if (raw) this.data = JSON.parse(raw);
+      } catch (e) {}
+    },
+    save() { try { localStorage.setItem(this.key, JSON.stringify(this.data)); } catch (e) {} },
+    weekKey() {
+      const d = new Date();
+      // ISO 주차 계산
+      const target = new Date(d.valueOf());
+      const dayNr = (d.getDay() + 6) % 7;
+      target.setDate(target.getDate() - dayNr + 3);
+      const firstThursday = target.valueOf();
+      target.setMonth(0, 1);
+      if (target.getDay() !== 4) {
+        target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+      }
+      const week = 1 + Math.ceil((firstThursday - target) / 604800000);
+      return d.getFullYear() + '-W' + String(week).padStart(2, '0');
+    },
+    // 이번 주 대물 어종 결정 (동해 활성 3종 중 1종, 해시 기반 결정적)
+    pick() {
+      const wk = this.weekKey();
+      if (this.data.weekKey === wk && this.data.featureId) return this.data.featureId;
+      // 결정적 해시: weekKey 의 char 합
+      let h = 0;
+      for (let i = 0; i < wk.length; i++) h = (h * 31 + wk.charCodeAt(i)) >>> 0;
+      const active = (game.fish || []).filter((f) => !f.locked);
+      if (active.length === 0) return null;
+      const idx = h % active.length;
+      this.data = { weekKey: wk, featureId: active[idx].id };
+      this.save();
+      return active[idx].id;
+    },
+    // 동해의 활성 어종에 가중치 부스트 (대물 어종 weight × 3, 나머지 × 0.7).
+    // 시간대별 추가: 밤(3)에 우럭 × 2, 노을(2)에 전갱이 × 1.5.
+    adjustWeights() {
+      const fid = this.pick();
+      game.fish.forEach((f) => {
+        if (f.locked) return;
+        let w = f.weight || 50;
+        // 기본 분배: 대물 × 3, 나머지 × 0.7
+        if (f.id === fid) w *= 3;
+        else w *= 0.7;
+        // 시간대별 보너스
+        if (timeOfDay === 3 && f.id === 'rockfish') w *= 2.0;       // 밤 = 우럭 가중
+        else if (timeOfDay === 2 && f.id === 'horse_mackerel') w *= 1.5; // 노을 = 전갱이
+        f.weight = Math.max(5, w);
+      });
+    },
+  };
+  liveEvent.load();
+
+  // ----------------------------------------------------------
   // 부트스트랩
   // ----------------------------------------------------------
   let input; // 전역 참조 (REEL 가속 체크용)
@@ -1383,6 +2666,7 @@
   Promise.all([loadFishData(), loadEconomyData()]).then(([fishData, economyData]) => {
     game.fish = fishData.fish;
     economy.upgrades = economyData.upgrades;
+    liveEvent.adjustWeights();
     applyUpgrades(); // economy.data.levels 가 비어있어도 기본값으로 채워짐
     input = makeInput(onPress, onRelease);
     updateHUD();
@@ -1432,6 +2716,76 @@
       if (game.state === STATE.CODEX) changeState(STATE.TITLE);
     });
   }
+
+  // ─── 사운드 토글 버튼 ───
+  const btnSound = document.getElementById('btn-sound');
+  if (btnSound) {
+    // 초기 상태 반영
+    btnSound.textContent = sound.enabled ? '🔊' : '🔇';
+    btnSound.classList.toggle('muted', !sound.enabled);
+    btnSound.addEventListener('click', () => {
+      sound.resume();
+      const next = !sound.enabled;
+      sound.setEnabled(next);
+      btnSound.textContent = next ? '🔊' : '🔇';
+      btnSound.classList.toggle('muted', !next);
+    });
+  }
+
+  // ─── 타이틀 연속 접속일 배지 ───
+  const titleStreakEl = document.getElementById('title-streak');
+  if (titleStreakEl) {
+    const s = daily.data.streak || 1;
+    if (s >= 1) {
+      titleStreakEl.textContent = '🔥 ' + s + '일 연속 출조';
+      titleStreakEl.style.display = 'inline-block';
+    } else {
+      titleStreakEl.style.display = 'none';
+    }
+  }
+
+  // ─── 일일 보너스 모달 (첫 출조 시 자동) ───
+  const elDailyBonus = document.getElementById('daily-bonus');
+  const elDailyStreak = document.getElementById('daily-streak');
+  const elDailyBonusLine = document.getElementById('daily-bonus-line');
+  const btnDailyClaim = document.getElementById('daily-claim');
+  function showDailyBonus() {
+    if (!elDailyBonus || !daily.canClaim()) return;
+    const b = daily.bonus();
+    if (elDailyStreak) elDailyStreak.textContent = '🔥 ' + (daily.data.streak || 1) + '일 연속 출조';
+    if (elDailyBonusLine) elDailyBonusLine.textContent = '🪙 ' + b.coins + ' + 미끼 ' + b.bait;
+    elDailyBonus.classList.remove('hidden');
+  }
+  function hideDailyBonus() {
+    if (elDailyBonus) elDailyBonus.classList.add('hidden');
+  }
+  if (btnDailyClaim) {
+    btnDailyClaim.addEventListener('click', () => {
+      const b = daily.claim();
+      if (b) {
+        economy.addCoins(b.coins);
+        // 미끼 보너스는 다음 판부터 — RT.baitPerRun 에 가산 (1회성)
+        CONFIG.baitPerRun += b.bait;
+        showToast(b.label, 'perfect');
+      }
+      hideDailyBonus();
+      // 보너스 후 PLAY로 자동 전환
+      changeState(STATE.PLAY);
+    });
+  }
+  // 첫 진입 시 자동 표시 (TITLE 상태)
+  if (game.state === STATE.TITLE) {
+    setTimeout(showDailyBonus, 200);
+  }
+
+  // 일시정지 모달 버튼 (PAUSE 중 활성화)
+  const btnResume = document.getElementById('btn-resume');
+  if (btnResume) btnResume.addEventListener('click', () => togglePause());
+  const btnQuit = document.getElementById('btn-quit');
+  if (btnQuit) btnQuit.addEventListener('click', () => {
+    // 일시정지에서 타이틀로 — 점수/미끼는 유지 (단, PLAY 상태 자체 초기화는 아님)
+    changeState(STATE.TITLE);
+  });
 
   // 창 포커스 잃으면 토스트 정리 (안전장치)
   window.addEventListener('blur', () => { game.toastT = 0; hideToast(); });
