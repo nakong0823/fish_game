@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "upgrades": [
+    {
+      "id": "rod",
+      "name_ko": "낚싯대",
+      "name_en": "Rod",
+      "icon": "🎣",
+      "maxLevel": 5,
+      "costs": [30, 80, 180, 380, 800],
+      "effectPerLevel": {
+        "castZoneMinDelta": 0,
+        "castZoneMaxDelta": 0,
+        "perfectZoneMinDelta": -1,
+        "perfectZoneMaxDelta": 0
+      },
+      "descPerLevel": [
+        "성공 범위 유지, PERFECT 1% 더 넓어짐",
+        "PERFECT 1% 더 넓어짐",
+        "PERFECT 1% 더 넓어짐",
+        "PERFECT 1% 더 넓어짐",
+        "최대 업그레이드"
+      ],
+      "summary": "PERFECT 구간을 조금씩 넓혀 큰 점수를 더 자주 받습니다."
+    },
+    {
+      "id": "reel",
+      "name_ko": "릴",
+      "name_en": "Reel",
+      "icon": "🌀",
+      "maxLevel": 5,
+      "costs": [30, 80, 180, 380, 800],
+      "effectPerLevel": {
+        "reelBaseRateDelta": 6,
+        "reelBoostRateDelta": 10
+      },
+      "descPerLevel": [
+        "REEL 자동 +6, 부스트 +10 (%/s)",
+        "REEL 자동 +6, 부스트 +10",
+        "REEL 자동 +6, 부스트 +10",
+        "REEL 자동 +6, 부스트 +10",
+        "최대 업그레이드"
+      ],
+      "summary": "REEL 속도가 빨라져 손맛이 좋아집니다."
+    },
+    {
+      "id": "bait",
+      "name_ko": "미끼통",
+      "name_en": "Bait",
+      "icon": "🪱",
+      "maxLevel": 5,
+      "costs": [30, 80, 180, 380, 800],
+      "effectPerLevel": {
+        "baitPerRunDelta": 2,
+        "comboKeepDelta": 0.4
+      },
+      "descPerLevel": [
+        "출조 미끼 +2, 콤보 유지 +0.4s",
+        "출조 미끼 +2, 콤보 유지 +0.4s",
+        "출조 미끼 +2, 콤보 유지 +0.4s",
+        "출조 미끼 +2, 콤보 유지 +0.4s",
+        "최대 업그레이드"
+      ],
+      "summary": "한 판에 더 오래, 콤보를 더 오래 유지할 수 있습니다."
+    }
+  ]
+}

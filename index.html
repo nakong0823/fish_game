@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Case & Reel — 캐주얼 웹 낚시</title>
+  <meta name="description" content="Case & Reel — 캐주얼 웹 낚시 게임. CAST → BITE → REEL 3박자." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main id="app">
+    <!-- 14-2: 게임 소개/필수 페이지 링크는 후속 단계에서 sidebar/nav로 추가. -->
+
+    <!-- 게임 캔버스 -->
+    <canvas id="game" width="960" height="540" aria-label="낚시 게임 캔버스"></canvas>
+
+    <!-- HUD (DOM 오버레이) -->
+    <div id="hud" aria-hidden="false">
+      <div id="hud-top">
+        <div id="score">SCORE <strong>0</strong></div>
+        <div id="combo" class="hud-combo hidden">×<strong>0</strong></div>
+        <div id="flurry" class="hud-flurry hidden">🔥 <strong>0</strong>s</div>
+        <div id="bait" title="남은 미끼">🪱 <strong>10</strong></div>
+        <div id="coins" title="보유 코인">🪙 <strong>0</strong></div>
+      </div>
+
+      <!-- 토스트 영역 (PERFECT / FAIL / MISS / +점수) -->
+      <div id="toast" class="toast hidden"></div>
+
+      <!-- 1단계에서는 어종 1종이라 도감 등록 훅만 표시. -->
+      <!-- 도감 카드 영역은 후속 단계에서 #codex-panel 등으로 추가. -->
+    </div>
+
+    <!-- 결과 모달 (RESULT 상태) -->
+    <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-card">
+        <h2 id="modal-title">Case &amp; Reel · 출조 결과</h2>
+        <div class="result-hero">
+          <p class="result-hero-label">SCORE</p>
+          <p class="result-hero-score" id="final-score">0</p>
+          <p class="result-hero-sub"><span id="final-catch">0</span>마리 · 🪙 <span id="final-coins">0</span></p>
+        </div>
+        <div class="result-stats" id="result-stats">
+          <div class="stat"><span class="stat-label">최장 콤보</span><span class="stat-value" id="stat-combo">0</span></div>
+          <div class="stat"><span class="stat-label">FLURRY</span><span class="stat-value" id="stat-flurry">0×</span></div>
+        </div>
+        <div id="result-badge" class="result-badge"></div>
+        <div id="result-summary" class="result-summary"></div>
+        <div id="result-next" class="result-next"></div>
+        <div id="result-meta" class="result-meta"></div>
+        <button id="again" class="primary">한 판 더 (스페이스 / 클릭)</button>
+        <button id="btn-shop" class="secondary">상점 (SHOP)</button>
+      </div>
+    </div>
+
+    <!-- SHOP 오버레이 (SHOP 상태) -->
+    <div id="shop" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="shop-title">
+      <div class="shop-card-wrapper">
+        <div class="shop-header">
+          <h2 id="shop-title">SHOP · 장비 업그레이드</h2>
+          <p class="shop-coins">🪙 <strong id="shop-coins">0</strong></p>
+        </div>
+        <div id="shop-list" class="shop-list"></div>
+        <button id="btn-shop-close" class="secondary">닫기</button>
+      </div>
+    </div>
+
+    <!-- 타이틀 오버레이 (TITLE 상태) -->
+    <div id="title" class="overlay">
+      <div class="overlay-card">
+        <h1>Case &amp; Reel</h1>
+        <p class="tagline">CAST · BITE · REEL</p>
+        <p class="hint">스페이스 / 클릭으로 시작</p>
+        <button id="btn-shop-title" class="secondary">SHOP</button>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         확장 훅 (1단계 비활성, 후속 단계에서 사용)
+         - #codex-panel : 도감(어종·크기 기록·수집률)
+         - #shop-panel  : 상점(3축 업그레이드, 코인)
+         - #ads-top / #ads-bottom : 에드센스 자동광고 슬롯
+         - data-layer : 어획/업그레이드/구매 이벤트 후킹
+         ============================================================ -->
+    <!--
+    <!-- AdSense slot: 페이지 상단/하단 반응형 광고 -->
+    <!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXX" crossorigin="anonymous"></script> -->
+    <!-- <ins class="adsbygoogle" ... ></ins> -->
+    -->
+
+    <!--
+    <!-- 도감 등록 훅 (game.js CATCH 처리 지점)
+         // codex.onCatch(fishId, sizeCm) — 후속 단계에서 구현
+    -->
+    -->
+  </main>
+
+  <script src="game.js" defer></script>
+</body>
+</html>
