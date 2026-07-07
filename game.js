@@ -57,71 +57,44 @@
 
   // 폴백 데이터 (fetch 실패 대비, file:// 대응)
   const FALLBACK_FISH = {
-    version: 3,
+    version: 4,
     fish: [
       {
-        id: 'mackerel',
-        name_ko: '고등어',
-        name_en: 'Mackerel',
-        rarity: 'common',
-        size: 'S',
-        region: 'east_breakwater',
-        time: 'all',
-        scoreMin: 30,
-        scoreMax: 60,
-        coin: 1,
-        reelDifficulty: 1.0,
-        sizeMinCm: 28,
-        sizeMaxCm: 42,
-        weight: 50,
-        title: '연습용 입문어',
-        color: '#7A8C99',
-        body: 'oval',
-        tail: 'forked',
+        id: 'mackerel', name_ko: '고등어', name_en: 'Mackerel',
+        rarity: 'common', size: 'S', region: 'east_breakwater', time: 'all',
+        scoreMin: 30, scoreMax: 60, coin: 1, reelDifficulty: 1.0,
+        sizeMinCm: 28, sizeMaxCm: 42, weight: 50,
+        title: '연습용 입문어', color: '#7A8C99', body: 'oval', tail: 'forked',
         codex: '은빛 줄무늬, 빠른 회수. 입문자에게 익숙한 맛.',
+        locked: false,
       },
       {
-        id: 'horse_mackerel',
-        name_ko: '전갱이',
-        name_en: 'Horse Mackerel',
-        rarity: 'common',
-        size: 'S',
-        region: 'east_breakwater',
-        time: 'all',
-        scoreMin: 35,
-        scoreMax: 70,
-        coin: 2,
-        reelDifficulty: 1.0,
-        sizeMinCm: 25,
-        sizeMaxCm: 38,
-        weight: 35,
-        title: '동해의 은빛 미끼',
-        color: '#A8C0BF',
-        body: 'slender',
-        tail: 'forked',
+        id: 'horse_mackerel', name_ko: '전갱이', name_en: 'Horse Mackerel',
+        rarity: 'common', size: 'S', region: 'east_breakwater', time: 'all',
+        scoreMin: 35, scoreMax: 70, coin: 2, reelDifficulty: 1.0,
+        sizeMinCm: 25, sizeMaxCm: 38, weight: 35,
+        title: '동해의 은빛 미끼', color: '#A8C0BF', body: 'slender', tail: 'forked',
         codex: '고등어보다 살짝 큰 코인. 가늘고 빠르다.',
+        locked: false,
       },
       {
-        id: 'rockfish',
-        name_ko: '우럭',
-        name_en: 'Rockfish',
-        rarity: 'common',
-        size: 'M',
-        region: 'east_breakwater',
-        time: 'all',
-        scoreMin: 60,
-        scoreMax: 110,
-        coin: 3,
-        reelDifficulty: 1.4,
-        sizeMinCm: 22,
-        sizeMaxCm: 45,
-        weight: 15,
-        title: '방파제의 큰놈',
-        color: '#C24A3A',
-        body: 'stocky',
-        tail: 'rounded',
+        id: 'rockfish', name_ko: '우럭', name_en: 'Rockfish',
+        rarity: 'common', size: 'M', region: 'east_breakwater', time: 'all',
+        scoreMin: 60, scoreMax: 110, coin: 3, reelDifficulty: 1.4,
+        sizeMinCm: 22, sizeMaxCm: 45, weight: 15,
+        title: '방파제의 큰놈', color: '#C24A3A', body: 'stocky', tail: 'rounded',
         codex: '드물게 큰 놈이 나옴. 신기록 가능성, 파이팅이 길다.',
+        locked: false,
       },
+      { id: 'sea_bream',     name_ko: '??', rarity: 'rare',      region: 'south_rocky', locked: true },
+      { id: 'red_snapper',   name_ko: '??', rarity: 'rare',      region: 'south_rocky', locked: true },
+      { id: 'hairtail',      name_ko: '??', rarity: 'rare',      region: 'south_rocky', locked: true },
+      { id: 'cuttlefish',    name_ko: '??', rarity: 'rare',      region: 'south_rocky', locked: true },
+      { id: 'yellowtail',    name_ko: '??', rarity: 'rare',      region: 'open_sea',    locked: true },
+      { id: 'tuna',          name_ko: '??', rarity: 'epic',      region: 'open_sea',    locked: true },
+      { id: 'cod',           name_ko: '??', rarity: 'epic',      region: 'open_sea',    locked: true },
+      { id: 'ocean_sunfish', name_ko: '??', rarity: 'legendary', region: 'open_sea',    locked: true },
+      { id: 'rainbow_fish',  name_ko: '??', rarity: 'legendary', region: 'event',       locked: true },
     ],
   };
 
@@ -278,18 +251,22 @@
   const elCombo   = document.querySelector('#combo strong');
   const elFlurry  = document.querySelector('#flurry strong');
   const elCoins   = document.querySelector('#coins strong');
+  const elVignette = document.getElementById('vignette');
   const elToast   = document.getElementById('toast');
   const elTitle   = document.getElementById('title');
   const elModal   = document.getElementById('modal');
   const elShop    = document.getElementById('shop');
+  const elCodex   = document.getElementById('codex');
   const elFinalS  = document.getElementById('final-score');
   const elFinalC  = document.getElementById('final-catch');
   const btnAgain  = document.getElementById('again');
   const btnShop   = document.getElementById('btn-shop');
   const btnShopClose = document.getElementById('btn-shop-close');
+  const btnCodex  = document.getElementById('btn-codex');
+  const btnCodexClose = document.getElementById('btn-codex-close');
 
   // 게임 상태
-  const STATE = { TITLE: 'TITLE', PLAY: 'PLAY', RESULT: 'RESULT', SHOP: 'SHOP' };
+  const STATE = { TITLE: 'TITLE', PLAY: 'PLAY', RESULT: 'RESULT', SHOP: 'SHOP', CODEX: 'CODEX' };
   const PHASE = {
     IDLE: 'IDLE',
     CASTING: 'CASTING',
@@ -321,6 +298,7 @@
     flurryCount: 0,        // 이번 판 FLURRY 발동 횟수
     flurryLeft: 0,         // FLURRY 남은 시간(초)
     lastCatchT: 0,         // 마지막 catch 시각(누적)
+    baitZeroT: 0,          // 미끼 0 긴장 연출 남은 시간
 
     // 페이즈별 타이머
     castT: 0,        // CASTING: 핑퐁 누적 시간
@@ -348,6 +326,7 @@
       elTitle.classList.remove('hidden');
       elModal.classList.add('hidden');
       elShop.classList.add('hidden');
+      elCodex.classList.add('hidden');
     } else if (next === STATE.PLAY) {
       // 세션 초기화
       game.score = 0;
@@ -363,19 +342,29 @@
       game.flurryCount = 0;
       game.flurryLeft = 0;
       game.lastCatchT = 0;
+      game.baitZeroT = 0;
       enterPhase(PHASE.IDLE);
       elTitle.classList.add('hidden');
       elModal.classList.add('hidden');
       elShop.classList.add('hidden');
+      elCodex.classList.add('hidden');
     } else if (next === STATE.RESULT) {
       elFinalS.textContent = game.score;
       elFinalC.textContent = game.catchCount;
       renderResult();
       elModal.classList.remove('hidden');
       elShop.classList.add('hidden');
+      elCodex.classList.add('hidden');
     } else if (next === STATE.SHOP) {
       renderShop();
       elShop.classList.remove('hidden');
+      elModal.classList.add('hidden');
+      elTitle.classList.add('hidden');
+      elCodex.classList.add('hidden');
+    } else if (next === STATE.CODEX) {
+      renderCodex();
+      elCodex.classList.remove('hidden');
+      elShop.classList.add('hidden');
       elModal.classList.add('hidden');
       elTitle.classList.add('hidden');
     }
@@ -391,7 +380,11 @@
       game.reelPct = 0;
       game.animT = 0;
       // 미끼 0이면 즉시 RESULT
-      if (game.bait <= 0) changeState(STATE.RESULT);
+      if (game.bait <= 0) {
+        // 1.2초 긴장 연출 후 RESULT 로
+        game.baitZeroT = 1.2;
+        showToast('미끼 0 · 출조 종료', 'miss');
+      }
     } else if (next === PHASE.CASTING) {
       game.castT = 0;
     } else if (next === PHASE.DRIFT) {
@@ -434,6 +427,10 @@
     }
     if (game.state === STATE.SHOP) {
       // SHOP 화면에서 스페이스/클릭은 무시 (각 카드 버튼으로 구매)
+      return;
+    }
+    if (game.state === STATE.CODEX) {
+      // CODEX 화면에서 스페이스/클릭은 무시
       return;
     }
     if (game.state !== STATE.PLAY) return;
@@ -569,6 +566,14 @@
         updateHUD();
       }
       if (game.flurryLeft === 0) updateHUD();
+    }
+
+    // 미끼 0 긴장 카운트다운
+    if (game.baitZeroT > 0) {
+      game.baitZeroT = Math.max(0, game.baitZeroT - dt);
+      if (game.baitZeroT === 0) {
+        changeState(STATE.RESULT);
+      }
     }
   }
   let _lastFlurryShown = -1;
@@ -936,6 +941,19 @@
     elToast.classList.add('hidden');
   }
 
+  // 화면 비네트 — 신기록 갱신 시 1.4초 플래시
+  function flashVignette() {
+    if (!elVignette) return;
+    elVignette.classList.remove('hidden');
+    // 강제 리플로우 후 클래스 재부여 (연속 트리거 대비)
+    void elVignette.offsetWidth;
+    elVignette.classList.add('flash');
+    setTimeout(() => {
+      elVignette.classList.remove('flash');
+      elVignette.classList.add('hidden');
+    }, 1500);
+  }
+
   // ----------------------------------------------------------
   // Stage 2 — 도감 (localStorage, 신기록/신규 등록)
   // ----------------------------------------------------------
@@ -1063,13 +1081,16 @@
   // 어종 가중치 랜덤 선택
   function pickActiveFish() {
     if (!game.fish || game.fish.length === 0) return null;
-    const total = game.fish.reduce((s, f) => s + (f.weight || 1), 0);
+    // 잠금 어종은 선택에서 제외
+    const pool = game.fish.filter((f) => !f.locked);
+    if (pool.length === 0) return null;
+    const total = pool.reduce((s, f) => s + (f.weight || 1), 0);
     let r = Math.random() * total;
-    for (const f of game.fish) {
+    for (const f of pool) {
       r -= (f.weight || 1);
       if (r <= 0) return f;
     }
-    return game.fish[game.fish.length - 1];
+    return pool[pool.length - 1];
   }
 
   // 어획 1회 처리 — 점수/카운트/도감/신기록
@@ -1092,6 +1113,8 @@
       const bonusCm = +((sizeCm - rec.prevCm) * CONFIG.recordBonusPerCm).toFixed(0);
       gain += bonusCm;
       game.records.push({ id: f.id, name_ko: f.name_ko, sizeCm, prevCm: rec.prevCm, bonus: bonusCm });
+      // 신기록 비네트 (최초 등극도 동일 효과)
+      flashVignette();
     }
 
     // 4) 도감 등록 (최초 1회)
@@ -1178,13 +1201,20 @@
         const detail = r.prevCm > 0 ? `+${r.bonus}점` : '신규';
         parts.push(`<span class="badge record big">${r.name_ko} ${r.sizeCm}cm <em>${detail}</em></span>`);
       });
+      // 이번 판의 "최고 신기록" 1개 강조 (prev>0 인 것 중 가장 큰 delta)
+      const upgrades = game.records.filter((r) => r.prevCm > 0);
+      if (upgrades.length > 0) {
+        const top = upgrades.reduce((a, b) => ((b.sizeCm - b.prevCm) > (a.sizeCm - a.prevCm) ? b : a));
+        const delta = +(top.sizeCm - top.prevCm).toFixed(1);
+        parts.unshift(`<span class="badge best-record">⭐ 최고 신기록 ${top.name_ko} +${delta}cm</span>`);
+      }
       badgeEl.innerHTML = parts.join(' ');
     }
 
     // 다음 목표 (별도 카드)
     const nextEl = document.getElementById('result-next');
     if (nextEl) {
-      const next = game.fish.find((f) => !codex.isCaught(f.id));
+      const next = game.fish.find((f) => !codex.isCaught(f.id) && !f.locked);
       if (next) {
         const colorDot = `<span class="dot" style="background:${next.color || '#999'}"></span>`;
         nextEl.innerHTML = `<p class="next-label">NEXT</p><p class="next-line">${colorDot}<strong>${next.name_ko}</strong> 한 마리! <span class="next-sub">(${next.title || ''})</span></p>`;
@@ -1193,13 +1223,16 @@
       }
     }
 
-    // 수집률
+    // 수집률 (활성 어종만 — 잠금 9종 제외)
     const rateEl = document.getElementById('result-meta');
     if (rateEl) {
-      const total = game.fish.length;
-      const caught = game.fish.filter((f) => codex.isCaught(f.id)).length;
+      const active = game.fish.filter((f) => !f.locked);
+      const total = active.length;
+      const caught = active.filter((f) => codex.isCaught(f.id)).length;
       const pct = total > 0 ? Math.round((caught / total) * 100) : 0;
-      rateEl.innerHTML = `<p class="modal-line">수집률 <strong>${caught}/${total}</strong> (${pct}%)</p>`;
+      const region = active[0] && active[0].region ? active[0].region : '';
+      rateEl.innerHTML = `<p class="modal-line">수집률 <strong>${caught}/${total}</strong> (${pct}%)</p>` +
+        (caught === total ? `<p class="modal-line muted">동해방파제 100%! SHOP/다음 지역 coming soon</p>` : '');
     }
   }
   // RESULT 진입 시 changeState() 가 이 함수를 호출한다 (위 changeState RESULT 분기에서).
@@ -1255,6 +1288,94 @@
   }
 
   // ----------------------------------------------------------
+  // CODEX 화면 — 12슬롯 도감 카드 그리드
+  // ----------------------------------------------------------
+  // 등급별 색/라벨 (잠금은 회색)
+  const RARITY_META = {
+    common:    { label: 'COMMON',    color: '#7A8C99' },
+    uncommon:  { label: 'UNCOMMON',  color: '#5DA39A' },
+    rare:      { label: 'RARE',      color: '#C24A3A' },
+    epic:      { label: 'EPIC',      color: '#8E44AD' },
+    legendary: { label: 'LEGENDARY', color: '#E0A800' },
+  };
+  // region 표시명
+  const REGION_META = {
+    east_breakwater: '동해 방파제',
+    south_rocky:     '남해 갯바위',
+    open_sea:        '원양',
+    event:           '라이브 이벤트',
+  };
+
+  function renderCodex() {
+    const listEl = document.getElementById('codex-list');
+    const rateEl = document.getElementById('codex-rate');
+    const titleEl = document.getElementById('codex-title-region');
+    if (!listEl) return;
+
+    const total = game.fish.length;
+    const caught = game.fish.filter((f) => !f.locked && codex.isCaught(f.id)).length;
+    const activeTotal = game.fish.filter((f) => !f.locked).length;
+    const pct = activeTotal > 0 ? Math.round((caught / activeTotal) * 100) : 0;
+    if (rateEl) rateEl.textContent = `${caught} / ${activeTotal}  (${pct}%)`;
+
+    // 현재 region (활성 어종 중 첫 region)
+    const currentRegion = (game.fish.find((f) => !f.locked) || {}).region || '';
+    if (titleEl) titleEl.textContent = REGION_META[currentRegion] || '도감';
+
+    listEl.innerHTML = '';
+    game.fish.forEach((f) => {
+      const isLocked = f.locked;
+      const isCaught = !isLocked && codex.isCaught(f.id);
+      const rec = isCaught ? codex.record(f.id) : 0;
+      const rarityMeta = RARITY_META[f.rarity] || RARITY_META.common;
+      const regionName = REGION_META[f.region] || f.region || '';
+
+      const card = document.createElement('div');
+      card.className = 'codex-card'
+        + (isLocked ? ' locked' : '')
+        + (isCaught ? ' caught' : ' unseen')
+        + ' rarity-' + (f.rarity || 'common');
+
+      if (isLocked) {
+        // 잠금 카드
+        card.innerHTML = `
+          <div class="codex-card-top">
+            <span class="codex-silhouette" aria-hidden="true">?</span>
+            <span class="codex-rarity-pill locked-pill">LOCKED</span>
+          </div>
+          <div class="codex-card-name">${regionName || '???'}</div>
+          <div class="codex-card-sub muted">다음 지역 · coming soon</div>
+          <div class="codex-card-record muted">최대 <strong>--</strong> cm</div>
+        `;
+      } else if (isCaught) {
+        const color = f.color || rarityMeta.color;
+        card.innerHTML = `
+          <div class="codex-card-top">
+            <span class="codex-dot" style="background:${color}"></span>
+            <span class="codex-rarity-pill">${rarityMeta.label}</span>
+          </div>
+          <div class="codex-card-name">${f.name_ko}</div>
+          <div class="codex-card-sub">${f.title || ''}</div>
+          <div class="codex-card-record">최대 <strong>${rec}</strong> cm</div>
+          <div class="codex-card-tip">${f.codex || ''}</div>
+        `;
+      } else {
+        // 미획득 활성 어종 — 실루엣 + 어종명 안 보이고 ?? + 힌트
+        card.innerHTML = `
+          <div class="codex-card-top">
+            <span class="codex-silhouette">?</span>
+            <span class="codex-rarity-pill">${rarityMeta.label}</span>
+          </div>
+          <div class="codex-card-name">???</div>
+          <div class="codex-card-sub muted">${regionName}</div>
+          <div class="codex-card-record muted">최대 <strong>--</strong> cm</div>
+        `;
+      }
+      listEl.appendChild(card);
+    });
+  }
+
+  // ----------------------------------------------------------
   // 부트스트랩
   // ----------------------------------------------------------
   let input; // 전역 참조 (REEL 가속 체크용)
@@ -1279,17 +1400,36 @@
       if (game.state === STATE.RESULT) changeState(STATE.SHOP);
     });
   }
-  // 타이틀의 [SHOP] 버튼 — HUD #btn-shop-title
+  // 결과 모달의 [도감] 버튼
+  if (btnCodex) {
+    btnCodex.addEventListener('click', () => {
+      if (game.state === STATE.RESULT) changeState(STATE.CODEX);
+    });
+  }
+  // 타이틀의 [SHOP] 버튼
   const btnShopTitle = document.getElementById('btn-shop-title');
   if (btnShopTitle) {
     btnShopTitle.addEventListener('click', () => {
       if (game.state === STATE.TITLE) changeState(STATE.SHOP);
     });
   }
+  // 타이틀의 [CODEX] 버튼
+  const btnCodexTitle = document.getElementById('btn-codex-title');
+  if (btnCodexTitle) {
+    btnCodexTitle.addEventListener('click', () => {
+      if (game.state === STATE.TITLE) changeState(STATE.CODEX);
+    });
+  }
   // SHOP 닫기
   if (btnShopClose) {
     btnShopClose.addEventListener('click', () => {
       if (game.state === STATE.SHOP) changeState(STATE.TITLE);
+    });
+  }
+  // CODEX 닫기
+  if (btnCodexClose) {
+    btnCodexClose.addEventListener('click', () => {
+      if (game.state === STATE.CODEX) changeState(STATE.TITLE);
     });
   }
 

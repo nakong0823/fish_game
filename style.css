@@ -113,6 +113,26 @@ html, body {
   to   { transform: scale(1.06); }
 }
 
+/* 신기록 비네트 이펙트 */
+.vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 35%, rgba(255, 209, 102, 0.0) 45%, rgba(255, 209, 102, 0.55) 75%, rgba(231, 111, 81, 0.85) 100%);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  z-index: 50;
+}
+.vignette.flash {
+  opacity: 1;
+  animation: vignetteFlash 1.4s ease-out forwards;
+}
+@keyframes vignetteFlash {
+  0%   { opacity: 0; }
+  20%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /* 토스트 */
 .toast {
   align-self: center;
@@ -199,6 +219,15 @@ html, body {
 }
 .badge.new    { background: #FFF3D6; color: #8a5a00; border-color: #FFD166; }
 .badge.record { background: #FFEAE0; color: #b53a1f; border-color: var(--accent); }
+.badge.best-record {
+  background: linear-gradient(90deg, #FFD166 0%, #E76F51 100%);
+  color: #fff;
+  border: none;
+  font-size: 13px;
+  padding: 6px 12px;
+  box-shadow: 0 2px 8px rgba(231, 111, 81, 0.35);
+  letter-spacing: 0.04em;
+}
 
 .result-summary {
   margin: 8px 0 4px 0;
@@ -523,4 +552,157 @@ button.secondary:disabled {
   margin-top: 4px;
   padding: 6px 10px;
   font-size: 12px;
+}
+
+/* 타이틀 카드 트리오 버튼 */
+.title-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 14px;
+}
+.title-buttons button { margin: 0; }
+
+/* CODEX 화면 */
+.codex-wrapper {
+  background: var(--paper);
+  color: var(--ink);
+  padding: 22px 26px;
+  border-radius: 12px;
+  width: min(820px, 94vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+  text-align: center;
+}
+.codex-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 4px 12px 4px;
+  border-bottom: 1px dashed rgba(43, 122, 155, 0.25);
+  margin-bottom: 14px;
+}
+.codex-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--sea-2);
+}
+.codex-header h2 span { color: var(--accent); }
+.codex-rate {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.codex-rate strong { color: var(--accent); }
+
+.codex-list {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 0 0 8px 0;
+}
+@media (max-width: 720px) {
+  .codex-list { grid-template-columns: repeat(2, 1fr); }
+}
+
+.codex-card {
+  position: relative;
+  background: linear-gradient(180deg, #ffffff 0%, #fdf6e9 100%);
+  border: 1px solid rgba(43, 122, 155, 0.18);
+  border-radius: 10px;
+  padding: 10px 10px 8px 10px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 132px;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.codex-card.caught { box-shadow: 0 2px 0 var(--sea-2) inset, 0 4px 12px rgba(43, 122, 155, 0.10); }
+.codex-card.caught:hover { transform: translateY(-1px); box-shadow: 0 2px 0 var(--sea-2) inset, 0 6px 16px rgba(43, 122, 155, 0.16); }
+
+.codex-card.locked {
+  background: linear-gradient(180deg, #ece7dc 0%, #d9d2c2 100%);
+  border-style: dashed;
+  border-color: rgba(43, 122, 155, 0.18);
+  opacity: 0.86;
+}
+.codex-card.unseen { background: linear-gradient(180deg, #f6f1e3 0%, #e7dfc9 100%); }
+
+.codex-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.codex-silhouette {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: rgba(43, 122, 155, 0.10);
+  color: var(--sea-2);
+  font-weight: 900;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+}
+.codex-dot {
+  display: inline-block;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.12);
+}
+.codex-rarity-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  border-radius: 999px;
+  background: rgba(43, 122, 155, 0.10);
+  color: var(--sea-2);
+}
+.codex-rarity-pill.locked-pill {
+  background: rgba(0,0,0,0.06);
+  color: var(--muted);
+}
+.codex-card.rarity-rare      .codex-rarity-pill { background: rgba(194,74,58,0.12); color: #C24A3A; }
+.codex-card.rarity-epic      .codex-rarity-pill { background: rgba(142,68,173,0.14); color: #8E44AD; }
+.codex-card.rarity-legendary .codex-rarity-pill { background: rgba(224,168,0,0.18); color: #B07D00; }
+.codex-card.rarity-legendary { border-color: rgba(224,168,0,0.55); }
+.codex-card.rarity-epic      { border-color: rgba(142,68,173,0.45); }
+.codex-card.rarity-rare      { border-color: rgba(194,74,58,0.45); }
+
+.codex-card-name {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--ink);
+  line-height: 1.1;
+  margin-top: 2px;
+}
+.codex-card-sub {
+  font-size: 11px;
+  color: var(--sea-2);
+  line-height: 1.2;
+}
+.codex-card-sub.muted { color: var(--muted); }
+.codex-card-record {
+  font-size: 11px;
+  color: var(--ink);
+  margin-top: 2px;
+}
+.codex-card-record strong { color: var(--accent); font-variant-numeric: tabular-nums; font-size: 13px; }
+.codex-card-record.muted strong { color: var(--muted); }
+.codex-card-tip {
+  font-size: 10px;
+  line-height: 1.3;
+  color: var(--muted);
+  margin-top: 4px;
+  border-top: 1px dashed rgba(43, 122, 155, 0.18);
+  padding-top: 4px;
 }

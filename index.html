@@ -14,6 +14,9 @@
     <!-- 게임 캔버스 -->
     <canvas id="game" width="960" height="540" aria-label="낚시 게임 캔버스"></canvas>
 
+    <!-- 신기록 비네트 이펙트 -->
+    <div id="vignette" class="vignette hidden" aria-hidden="true"></div>
+
     <!-- HUD (DOM 오버레이) -->
     <div id="hud" aria-hidden="false">
       <div id="hud-top">
@@ -50,6 +53,7 @@
         <div id="result-meta" class="result-meta"></div>
         <button id="again" class="primary">한 판 더 (스페이스 / 클릭)</button>
         <button id="btn-shop" class="secondary">상점 (SHOP)</button>
+        <button id="btn-codex" class="secondary">도감 (CODEX)</button>
       </div>
     </div>
 
@@ -65,13 +69,28 @@
       </div>
     </div>
 
+    <!-- CODEX 오버레이 (CODEX 상태) -->
+    <div id="codex" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="codex-title">
+      <div class="codex-wrapper">
+        <div class="codex-header">
+          <h2 id="codex-title">CODEX · <span id="codex-title-region">도감</span></h2>
+          <p class="codex-rate">수집 <strong id="codex-rate">0 / 0</strong></p>
+        </div>
+        <div id="codex-list" class="codex-list"></div>
+        <button id="btn-codex-close" class="secondary">닫기</button>
+      </div>
+    </div>
+
     <!-- 타이틀 오버레이 (TITLE 상태) -->
     <div id="title" class="overlay">
       <div class="overlay-card">
         <h1>Case &amp; Reel</h1>
         <p class="tagline">CAST · BITE · REEL</p>
         <p class="hint">스페이스 / 클릭으로 시작</p>
-        <button id="btn-shop-title" class="secondary">SHOP</button>
+        <div class="title-buttons">
+          <button id="btn-shop-title" class="secondary">SHOP</button>
+          <button id="btn-codex-title" class="secondary">CODEX</button>
+        </div>
       </div>
     </div>
 
