@@ -35,6 +35,9 @@ function showScreen(name) {
     const el = document.getElementById('screen-' + s);
     if (el) el.classList.toggle('hidden', s !== name);
   }
+  // 현재 화면 마커 (다음 showScreen 때 슬라이드 방향 결정용)
+  window.__lastScreen = window.__currentScreen || name;
+  window.__currentScreen = name;
 }
 
 function toast(msg, kind = '') {
@@ -279,7 +282,22 @@ function advanceAfterNode() {
 // ============================================================
 let cast = null;
 
+// 시간대별 분위기 (낮 → 해질녘 → 밤)
+function applyTimeOfDay() {
+  const body = document.body;
+  // 명세: stage 3 = night (야간)
+  if (!run) {
+    body.classList.remove('time-day', 'time-dusk', 'time-night');
+    return;
+  }
+  body.classList.remove('time-day', 'time-dusk', 'time-night');
+  if (run.stage === 1) body.classList.add('time-day');
+  else if (run.stage === 2) body.classList.add('time-dusk');
+  else if (run.stage === 3) body.classList.add('time-night');
+}
+
 function enterCasting() {
+  applyTimeOfDay();
   const stage = run.stage;
   const node = run.currentNode;
   // 보스면 손수 조정 (deadline)
@@ -411,6 +429,7 @@ function fishingTick(now) {
         run.safetyNetUsed = true;
         cast.tension = 99;
         toast('안전 그물 발동!', 'good');
+        try { window.playSound('saved'); } catch (e) {}
         const tFill = qs('#tension-fill');
         if (tFill) {
           tFill.classList.add('is-saved');
@@ -474,8 +493,9 @@ function finalizeCast(success, perfect) {
     run.runStats.comboReel = 0;
     setFishingHUD();
     setFishingPhase('RESULT');
-    qs('#fish-line').textContent = '놓침! 미끼만 소모';
+    qs('#fish-line').textContent = '💨 놓침! 미끼만 소모';
     qs('#fish-score').textContent = '+0';
+    try { window.playSound('miss'); } catch (e) {}
     cast.phase = 'MISS';
     cast.phaseT = 0.8;
     if (run.bait <= 0) {
@@ -522,21 +542,27 @@ function finalizeCast(success, perfect) {
   setFishingHUD();
   setFishingPhase('RESULT');
   const sizeLabel = `${sizeRoll}cm`;
-  const emoji = FISH_EMOJI[fish.id] || '🐟';
-  qs('#fish-line').innerHTML = `<span class="catch-fish">${emoji}</span><br>${fish.name} <span class="stat-value">(${sizeLabel})</span> ${perfect ? '⭐ 퍼펙트' : ''}`;
+  const fishSvg = window.FISH_SVG?.[fish.id] || '<span class="fish-emoji">🐟</span>';
+  qs('#fish-line').innerHTML = `
+    <div class="catch-fish-svg">${fishSvg}</div>
+    <div style="font-size:18px;margin-top:8px;"><strong>${fish.name}</strong> <span class="stat-value">(${sizeLabel})</span> ${perfect ? '⭐ 퍼펙트' : ''}</div>
+  `;
   qs('#fish-score').textContent = `+${score}`;
   // 점수 카운트업 애니메이션
   qs('#fish-score').classList.remove('count-up');
   void qs('#fish-score').offsetWidth;
   qs('#fish-score').classList.add('count-up');
+  // 사운드
+  try { window.playSound(perfect ? 'perfect' : 'catch'); } catch (e) {}
   // 점수 팝업 (점수 자체)
   spawnScorePopup(`+${score}`, 'add', score >= 100);
   // 신규 어종 배너
   if (isNewSpecies) {
     spawnNewSpeciesBanner(fish.name);
+    try { window.playSound('clear'); } catch (e) {}
   }
   cast.phase = 'CATCH';
-  cast.phaseT = 1.0; // 약간 길게
+  cast.phaseT = 1.2; // 약간 길게 (SVG 보여줄 시간)
 }
 
 // ============================================================
@@ -698,11 +724,24 @@ function addCardToJoker(cardId, silent) {
     if (!silent) {
       const card = ALL_CARDS.find(c => c.id === cardId);
       toast(`비법 획득: ${card.name}`, 'good');
+      try { window.playSound('reroll'); } catch (e) {}
     }
     // 시그니처 달성 체크
     if (run.joker.length === run.jokerCapacity) {
       run.signatureBonus = true;
       toast('🏆 빌드 시그니처 완성! 모든 점수 ×1.15', 'good');
+      // 트로피 배너 + 화면 흔들림
+      const screen = qs('#screen-reward');
+      if (screen) {
+        screen.classList.add('is-shaking', 'is-evolve-glow');
+        setTimeout(() => screen.classList.remove('is-shaking', 'is-evolve-glow'), 1500);
+      }
+      const tEl = document.createElement('div');
+      tEl.className = 'trophy-banner';
+      tEl.textContent = '🏆';
+      document.body.appendChild(tEl);
+      setTimeout(() => tEl.remove(), 2100);
+      try { window.playSound('evolve'); } catch (e) {}
     }
   }
 }
@@ -737,7 +776,26 @@ function pickByRarity(rarity = null) {
 function drawRewardCards(count = 3, isHotspot = false) {
   // hotspot: 1장 uncommon 이상 확정
   const cards = [];
-  if (isHotspot) {
+  // 진화 가능한 Lv.3 카드가 있는지 확인
+  const lv3Cards = run ? run.joker.filter(j => j.level === 3) : [];
+  for (const j of lv3Cards) {
+    const evo = EVOLUTIONS.find(e => e.base === j.id);
+    if (evo && canEvolve(evo) && Math.random() < 0.4) {
+      // 진화 카드로 등장 (희귀)
+      cards.push({
+        id: evo.evolveId,
+        name: evo.evolveName,
+        rarity: 'legendary',
+        type: 'util',
+        desc: evo.desc,
+        num: { base: 0, perLvl: 0 },
+        isEvolved: true,
+      });
+      count -= 1;
+      if (count <= 0) break;
+    }
+  }
+  if (isHotspot && count > 0) {
     const rarities = ['uncommon', 'rare', 'legendary'];
     let r = 'uncommon';
     const roll = Math.random();
@@ -778,25 +836,45 @@ function renderReward() {
   for (const c of rewardCards) {
     const div = document.createElement('div');
     div.className = 'card rarity-' + c.rarity;
+    if (c.isEvolved) div.classList.add('is-evolution', 'is-evolve-glow');
     const owned = run.joker.find(j => j.id === c.id);
     const lv = owned ? owned.level : 0;
     // 효과 미리보기 (카드 데이터 기반)
     let previewText = c.desc;
     if (c.num?.mult) previewText += ` ×${c.num.mult.base}`;
     if (c.num?.add) previewText += ` +${c.num.add.base}`;
-    if (c.num?.base && !c.num?.mult && !c.num?.add) previewText += ` (${c.num.base})`;
+    if (c.num?.base && !c.num?.mult && !c.num?.add && c.num.base !== 0) previewText += ` (${c.num.base})`;
     div.innerHTML = `
-      <div class="card-rarity">${c.rarity}${owned ? ` · Lv.${lv}` : ''}</div>
+      <div class="card-rarity">${c.rarity}${owned ? ` · Lv.${lv}` : ''}${c.isEvolved ? ' · 진화' : ''}</div>
       <div class="card-name">${c.name}</div>
       <div class="card-desc">${c.desc}</div>
       <div class="card-preview">${previewText}</div>
     `;
     div.addEventListener('click', () => {
       div.classList.add('is-selected');
+      // 진화 카드는 진화 사운드 + 화면 흔들림
+      if (c.isEvolved) {
+        try { window.playSound('evolve'); } catch (e) {}
+        const screen = qs('#screen-reward');
+        if (screen) {
+          screen.classList.add('is-shaking');
+          setTimeout(() => screen.classList.remove('is-shaking'), 500);
+        }
+      }
       setTimeout(() => {
-        addCardToJoker(c.id, false);
+        // 진화 카드 선택 시: 원본 Lv.3 제거 → 진화 추가
+        if (c.isEvolved) {
+          const evo = EVOLUTIONS.find(e => e.evolveId === c.id);
+          if (evo) {
+            run.joker = run.joker.filter(j => j.id !== evo.base);
+            run.joker.push({ id: c.id, level: 1, isEvolved: true });
+            toast(`진화! ${c.name}`, 'good');
+          }
+        } else {
+          addCardToJoker(c.id, false);
+        }
         advanceAfterNode();
-      }, 250);
+      }, 300);
     });
     wrap.appendChild(div);
   }
@@ -929,9 +1007,17 @@ function renderPath() {
       if (isCurrent) div.classList.add('is-current');
       if (isNext) div.classList.add('is-next');
       if (isLocked) div.classList.add('is-locked');
+      const desc = {
+        fishing: '🎣 표준 캐스팅. 카드 보상',
+        hotspot: '✨ 희귀 어종 2배. 좋은 카드',
+        shop: '🛒 카드·미끼 구매',
+        rest: '☕ 미끼 +4 회복',
+        boss: '👹 방해 규칙. 마지막',
+      }[node.type] || '';
       div.innerHTML = `
         <div class="path-node-icon">${iconOfType(node.type)}</div>
         <div class="path-node-name">${node.label}</div>
+        <div class="path-node-desc">${desc}</div>
       `;
       if (isNext) {
         div.addEventListener('click', () => {
@@ -943,7 +1029,7 @@ function renderPath() {
     }
     board.appendChild(col);
   }
-  // SVG 연결선 (이전/현재/다음 노드만)
+  // SVG 연결선
   drawPathLines();
 }
 
@@ -1064,6 +1150,7 @@ function renderStageResult(pass, achieved, target) {
 function finishRun(win) {
   // RUN 전체 통계
   const renown = Math.floor(run.totalScore / 10) + (win ? CONFIG.RUN.stages * CONFIG.META_RENOWN_PER_STAGE : (run.stage - 1) * CONFIG.META_RENOWN_PER_STAGE);
+  const isBest = run.totalScore > meta.stats.bestRunScore;
   meta.renown += renown;
   meta.stats.totalRuns += 1;
   if (win) meta.stats.clears += 1;
@@ -1073,15 +1160,26 @@ function finishRun(win) {
   showScreen('run-result');
   qs('#run-result-title').textContent = win ? '🎉 출조 성공!' : '출조 종료';
   qs('#run-result-body').innerHTML = `
-    <div class="stat-row"><span class="stat-label">총 점수</span><span class="stat-value">${run.totalScore}</span></div>
+    <div class="stat-row ${isBest ? 'is-good is-best-flash' : ''}"><span class="stat-label">총 점수</span><span class="stat-value">${run.totalScore}${isBest ? ' 🆕' : ''}</span></div>
     <div class="stat-row"><span class="stat-label">클리어 스테이지</span><span class="stat-value">${run.stage - 1} / ${CONFIG.RUN.stages}</span></div>
     <div class="stat-row"><span class="stat-label">잡은 물고기</span><span class="stat-value">${run.runStats.caughtFish.length}마리</span></div>
     <div class="stat-row is-good"><span class="stat-label">획득 명성</span><span class="stat-value">+${renown}</span></div>
     <div class="stat-row"><span class="stat-label">최고 어종</span><span class="stat-value">${bestFishOfRun()}</span></div>
   `;
-  // 부활 버튼 (MVP: 즉시 부활)
+  // 부활 버튼
   const adBtn = qs('button[data-action="ad-revive"]');
   if (adBtn) adBtn.style.display = run.pendingRevive ? 'none' : '';
+  // 사운드 + 트로피
+  try { window.playSound(win ? 'clear' : 'miss'); } catch (e) {}
+  if (isBest && run.totalScore > 0) {
+    setTimeout(() => {
+      const tEl = document.createElement('div');
+      tEl.className = 'trophy-banner';
+      tEl.textContent = '🏆 신기록!';
+      document.body.appendChild(tEl);
+      setTimeout(() => tEl.remove(), 2100);
+    }, 500);
+  }
 }
 
 function bestFishOfRun() {
@@ -1202,6 +1300,7 @@ function handleSpace(down) {
   if (cast.phase === 'CAST' && down) {
     // 게이지 멈춤 → 정확도 산출
     cast.accuracy = 1 - Math.abs(50 - cast.gaugePos) / 50; // 0~1
+    try { window.playSound('cast'); } catch (e) {}
     // 미끼 소모 (bait_master: 확률로 미소모)
     const baitMasterLv = jokerLevel('bait_master');
     const skipChance = baitMasterLv > 0 ? (0.1 + 0.1 * (baitMasterLv - 1)) : 0;
@@ -1220,6 +1319,7 @@ function handleSpace(down) {
     // 훅셋
     const elapsed = performance.now() - cast.biteStartMs;
     if (elapsed <= cast.bitWindow) {
+      try { window.playSound('hook'); } catch (e) {}
       // REEL 진입
       cast.phase = 'REEL';
       cast.tension = 50;
@@ -1236,6 +1336,9 @@ function handleSpace(down) {
   } else if (cast.phase === 'REEL') {
     // 인터랙티브: 누르고 있으면 reeling=true, 떼면 false
     cast.reeling = down;
+    if (down) {
+      try { window.playSound('reel'); } catch (e) {}
+    }
   }
 }
 

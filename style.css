@@ -173,6 +173,51 @@ button {
 .phase-pane { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .phase-hint { color: var(--ink-2); font-size: 14px; margin: 0; }
 
+/* 캐스팅 그물 비주얼 */
+.cast-net {
+  position: relative;
+  width: 200px; height: 200px;
+}
+.cast-net-circle {
+  position: absolute;
+  inset: 0;
+  border: 3px dashed rgba(251, 191, 36, .4);
+  border-radius: 50%;
+  animation: net-spin 4s linear infinite;
+}
+.cast-net-circle::before {
+  content: '';
+  position: absolute;
+  inset: 25%;
+  border: 2px dashed rgba(251, 191, 36, .6);
+  border-radius: 50%;
+}
+.cast-net-circle::after {
+  content: '';
+  position: absolute;
+  inset: 50%;
+  width: 4px; height: 4px;
+  background: var(--accent);
+  border-radius: 50%;
+  margin: -2px;
+  box-shadow: 0 0 12px var(--accent);
+}
+@keyframes net-spin {
+  0% { transform: rotate(0); }
+  100% { transform: rotate(360deg); }
+}
+.cast-net-water {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, transparent 30%, rgba(56, 189, 248, .15) 50%, rgba(56, 189, 248, .4) 100%);
+  border-radius: 50%;
+  animation: water-shimmer 2s ease-in-out infinite;
+}
+@keyframes water-shimmer {
+  0%, 100% { opacity: .8; }
+  50%      { opacity: 1; transform: scale(1.05); }
+}
+
 /* CAST 게이지 */
 .cast-gauge {
   position: relative;
@@ -661,6 +706,250 @@ button {
   font-size: 10px; color: var(--ok);
   font-weight: 700;
   pointer-events: none;
+}
+
+/* ============================================================
+   v0.8 — 그래픽 v2 (어종 SVG, 카드 뒷면, CRT, 화면별)
+   ============================================================ */
+
+/* 어종 SVG */
+.catch-fish-svg {
+  display: inline-block;
+  width: 160px; height: 96px;
+  animation: catch-rise 1.2s ease-out forwards;
+}
+.catch-fish-svg svg {
+  width: 100%; height: 100%;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,.5));
+}
+
+/* 카드 뒷면 (플립 효과용) */
+.card-back {
+  background: var(--bg-2);
+  background-image:
+    repeating-linear-gradient(45deg, transparent 0, transparent 10px, rgba(245, 158, 11, .08) 10px, rgba(245, 158, 11, .08) 20px);
+  border: 2px solid var(--rarity-legendary);
+}
+.card-back-icon {
+  font-size: 36px;
+  display: flex; align-items: center; justify-content: center;
+  height: 80px;
+}
+
+/* CRT 스캔라인 (전체 화면) */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0) 0,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, .06) 3px,
+    rgba(0, 0, 0, 0) 4px
+  );
+  pointer-events: none;
+  z-index: 999;
+}
+
+/* 타이틀 화면 물결 배경 */
+@keyframes wave-shift {
+  0%   { background-position: 0 0; }
+  100% { background-position: 200px 0; }
+}
+.title-wave {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(56, 189, 248, .15) 0%, transparent 40%),
+    radial-gradient(circle at 80% 90%, rgba(56, 189, 248, .1) 0%, transparent 50%);
+  animation: wave-shift 8s linear infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* 화면 별 진입 애니메이션 */
+.screen.screen-slide-left {
+  animation: slide-from-right 0.35s ease-out;
+}
+.screen.screen-slide-right {
+  animation: slide-from-left 0.35s ease-out;
+}
+@keyframes slide-from-right {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slide-from-left {
+  from { opacity: 0; transform: translateX(-40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* 카드 idle 떠다니는 효과 (Balatro 式) */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+.card:not(:hover):not(.is-selected) {
+  animation: float 3s ease-in-out infinite;
+}
+.card:nth-child(2):not(:hover) { animation-delay: .3s; }
+.card:nth-child(3):not(:hover) { animation-delay: .6s; }
+
+/* 노드 hover 설명 */
+.path-node {
+  position: relative;
+}
+.path-node-desc {
+  display: none;
+  position: absolute;
+  bottom: 110%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #020617;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--ink-0);
+  white-space: nowrap;
+  z-index: 100;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,.6);
+}
+.path-node:hover .path-node-desc {
+  display: block;
+}
+
+/* REEL 상태등 강조 (저항/이완 시각화) */
+.reel-state {
+  position: relative;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 12px;
+  transition: all .2s;
+}
+.reel-state.is-resist {
+  background: rgba(239, 68, 68, .2);
+  border: 1px solid var(--bad);
+}
+.reel-state.is-relax {
+  background: rgba(56, 189, 248, .2);
+  border: 1px solid #38bdf8;
+}
+
+/* REEL 초록존 텍스트 강조 */
+.reel-zone-text {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 110%;
+  font-size: 10px;
+  color: var(--ok);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* 어종 잡힐 때 텍스트 큰 강조 */
+#fish-line {
+  font-size: 22px;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* 진화 카드 등장 시 화면 흔들림 */
+@keyframes screen-shake {
+  0%, 100% { transform: translate(0, 0); }
+  20%      { transform: translate(-6px, 4px); }
+  40%      { transform: translate(6px, -4px); }
+  60%      { transform: translate(-4px, 6px); }
+  80%      { transform: translate(4px, -6px); }
+}
+.screen.is-shaking {
+  animation: screen-shake 0.5s ease-in-out;
+}
+
+/* 진화 광채 */
+@keyframes evolve-glow {
+  0%   { box-shadow: 0 0 0 rgba(245, 158, 11, 0); }
+  50%  { box-shadow: 0 0 80px rgba(245, 158, 11, .8); }
+  100% { box-shadow: 0 0 0 rgba(245, 158, 11, 0); }
+}
+.is-evolve-glow {
+  animation: evolve-glow 1.5s ease-in-out;
+  border-radius: 12px;
+}
+
+/* 승급 애니메이션 (새 명성 최고점 갱신) */
+@keyframes best-flash {
+  0%, 100% { background: transparent; }
+  50%      { background: rgba(245, 158, 11, .3); }
+}
+.is-best-flash {
+  animation: best-flash 0.6s ease-in-out 2;
+}
+
+/* 트로피 애니메이션 */
+@keyframes trophy-rise {
+  0%   { opacity: 0; transform: translate(-50%, 30px) scale(.5); }
+  30%  { opacity: 1; transform: translate(-50%, -10px) scale(1.2); }
+  60%  { transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -40px) scale(.9); }
+}
+.trophy-banner {
+  position: fixed; top: 25%; left: 50%;
+  transform: translateX(-50%);
+  font-size: 56px;
+  z-index: 250;
+  pointer-events: none;
+  animation: trophy-rise 2s ease-out forwards;
+  filter: drop-shadow(0 0 20px rgba(245, 158, 11, .8));
+}
+
+/* 진행도 마일스톤 텍스트 */
+.reel-progress-wrap {
+  position: relative;
+}
+
+/* 시간대별 분위기 */
+body.time-day {
+  background: linear-gradient(180deg, #0f172a 0%, #1e3a5f 100%);
+}
+body.time-dusk {
+  background: linear-gradient(180deg, #1e1b4b 0%, #5b2e0f 60%, #831843 100%);
+}
+body.time-night {
+  background: linear-gradient(180deg, #020617 0%, #1e1b4b 100%);
+}
+body.time-night::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 20% 30%, white 1px, transparent 1px),
+    radial-gradient(circle at 60% 10%, white 1px, transparent 1px),
+    radial-gradient(circle at 80% 70%, white 1px, transparent 1px),
+    radial-gradient(circle at 30% 80%, white 1px, transparent 1px),
+    radial-gradient(circle at 90% 20%, white 1px, transparent 1px);
+  background-size: 200px 200px;
+  opacity: 0.3;
+  pointer-events: none;
+  z-index: -1;
+  animation: twinkle 4s ease-in-out infinite alternate;
+}
+@keyframes twinkle {
+  0%   { opacity: 0.2; }
+  100% { opacity: 0.4; }
+}
+
+/* 시간대 표시 (낮/밤 분위기) */
+.time-indicator-v2 {
+  position: fixed; top: 12px; right: 12px;
+  background: rgba(0,0,0,.5);
+  color: var(--ink-1);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  z-index: 50;
 }
 
 /* BITE 윈도우 카운트다운 */
