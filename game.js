@@ -447,6 +447,12 @@ function fishingTick(now) {
     qs('#tension-fill').style.height = cast.tension + '%';
     qs('#tension-tick').style.bottom = cast.tension + '%';
     qs('#progress-fill').style.width = cast.progress + '%';
+    // 마일스톤 체크 (25/50/75)
+    const prevProg = cast.lastProg || 0;
+    if (prevProg < 25 && cast.progress >= 25) spawnScorePopup('25%', 'add', false);
+    if (prevProg < 50 && cast.progress >= 50) spawnScorePopup('50%', 'add', false);
+    if (prevProg < 75 && cast.progress >= 75) spawnScorePopup('75%', 'add', false);
+    cast.lastProg = cast.progress;
     const rs = qs('#reel-state');
     rs.textContent = isResist ? '저항 중' : '이완 중';
     rs.className = 'reel-state ' + (isResist ? 'is-resist' : 'is-relax');
@@ -556,6 +562,9 @@ function finalizeCast(success, perfect) {
   try { window.playSound(perfect ? 'perfect' : 'catch'); } catch (e) {}
   // 점수 팝업 (점수 자체)
   spawnScorePopup(`+${score}`, 'add', score >= 100);
+  // 점수 폭발 팝업 (큰 점수일 때)
+  if (score >= 200) spawnScorePopup('🔥 대박!', 'mult', true);
+  if (perfect) spawnScorePopup('⭐ 퍼펙트 ×1.3', 'mult', false);
   // 신규 어종 배너
   if (isNewSpecies) {
     spawnNewSpeciesBanner(fish.name);
