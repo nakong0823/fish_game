@@ -75,16 +75,16 @@ const CARDS_SCORE = [
     desc: "REEL 퍼펙트 시 추가 곱", num: { mult: { base: 1.5, perLvl: 0.2 }, cond: { kind: "perfectReel" } } },
   // rare
   { id: "collector",    name: "수집가의 눈", rarity: "rare", type: "score",
-    desc: "도감 등록 어종 수만큼 합", num: { add: { base: 2, perLvl: 1 }, cond: { kind: "perEncyclopedia", v: 2 } } },
+    desc: "도감 등록 어종 수 × (Lv+1) 점수 합", num: { add: { base: 2, perLvl: 1 }, cond: { kind: "perEncyclopedia", v: 1 }, scale: { kind: "levelPlus1" } } },
   { id: "golden_hour",  name: "골든타임", rarity: "rare", type: "score",
     desc: "스테이지 3번째 손 점수 곱", num: { mult: { base: 2.5, perLvl: 0.3 }, cond: { kind: "castIndexIs", v: 3 } } },
   { id: "small_master", name: "잔챙이의 달인", rarity: "rare", type: "score",
     desc: "소형(<30cm) 점수 곱", num: { mult: { base: 2.0, perLvl: 0.3 }, cond: { kind: "maxSize", v: 30 } } },
   { id: "lucky_lure",   name: "행운의 루어", rarity: "rare", type: "score",
-    desc: "캐스팅 20% 확률 점수 2배", num: { mult: { base: 2.0, perLvl: 0.3 }, cond: { kind: "randomChance", v: 0.2 } } },
+    desc: "캐스팅 20% 확률 점수 ×3 + 콤보+1", num: { mult: { base: 3.0, perLvl: 0.5 }, cond: { kind: "randomChance", v: 0.2 }, onTrigger: { kind: "comboPlus" } } },
   // legendary
   { id: "master_angler", name: "명인의 비법", rarity: "legendary", type: "score",
-    desc: "모든 점수 곱", num: { mult: { base: 1.35, perLvl: 0.15 } } },
+    desc: "모든 점수 곱 (Lv당 +0.2)", num: { mult: { base: 1.6, perLvl: 0.2 }, extra: { kind: "jokerCount", v: 0.05 } } },
 ];
 
 // ---------- 5-2. 유틸리티 카드 (6종) ----------
@@ -101,6 +101,9 @@ const CARDS_UTIL = [
     desc: "진행도 상승 속도 증가", num: { base: 1.3, perLvl: 0.2 } },
   { id: "safety_net",   name: "안전 그물",     rarity: "rare",      type: "util",
     desc: "RUN당 1회 라인 파손 무효(성공 처리)", num: { base: 1, perLvl: 0 } },
+  // 추가: 미끼 미소모 조건 (시그니처 빌드용)
+  { id: "bait_master",  name: "미끼 절약술",   rarity: "uncommon",  type: "util",
+    desc: "10% 확률로 미끼 소모 없음", num: { base: 0.1, perLvl: 0.1 } },
 ];
 
 const ALL_CARDS = [...CARDS_SCORE, ...CARDS_UTIL];

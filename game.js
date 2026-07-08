@@ -125,6 +125,7 @@ function startRun() {
     bossDefeated: false,              // 보스 잡힘 여부
     safetyNetUsed: false,             // 안전그물 발동 여부
     pendingRevive: false,
+    signatureBonus: false,            // 5장 채우면 모든 점수 ×1.15
   };
 
   // 시작 비법 (perk_start_card)
@@ -237,6 +238,8 @@ function enterCasting() {
     nextSwitchMs: 0,
     fish: null,                  // 성공 시 어종 결정
     sizeRoll: 0,                 // cm
+    reeling: false,              // 누르고 있는 중
+    castNode: node,              // 안전용
   };
   // 어종 풀 미리 결정하지 않음 (REEL 성공 시 가중)
   showScreen('fishing');
@@ -261,7 +264,7 @@ function setFishingHUD() {
 }
 
 function fishingTick(now) {
-  if (!cast || !run || run.currentNode !== cast.node) return; // 안전
+  if (!cast || !run || run.currentNode !== cast.castNode) return; // 안전
   if (!cast.lastT) cast.lastT = now;
   const dt = (now - cast.lastT) / 1000;
   cast.lastT = now;
@@ -282,11 +285,10 @@ function fishingTick(now) {
   } else if (cast.phase === 'REEL') {
     cast.reelTimeMs -= dt * 1000;
     if (cast.reelTimeMs <= 0) {
-      // 시간 초과 → 실패
       finalizeCast(false, false);
       return requestAnimationFrame(fishingTick);
     }
-    // 상태 전환
+    // 상태 전환 (저항 ↔ 이완)
     cast.nextSwitchMs -= dt * 1000;
     if (cast.nextSwitchMs <= 0) {
       cast.fishState = cast.fishState === 'resist' ? 'relax' : 'resist';
@@ -294,45 +296,60 @@ function fishingTick(now) {
       const mult = isResist ? [700, 1500] : [500, 1200];
       cast.nextSwitchMs = randInt(mult[0], mult[1]);
     }
-    // 조작: 누르고 있으면 릴 감음 (MVP: 자동 진행, 입력은 단순화)
-    // 텐션/진행도 자동 업데이트 (인터랙티브 단순화 버전)
+
+    // 카드 효과 적용
     const tier = cast.fish?.tier || 1;
     const tierMult = CONFIG.REEL.tierTensionMult[tier];
     const wideZoneLv = jokerLevel('wide_zone');
     const slowTensionLv = jokerLevel('slow_tension');
+    const autoReelLv = jokerLevel('auto_reel');
     const calmFishLv = jokerLevel('calm_fish');
     const fastProgressLv = jokerLevel('fast_progress');
 
     const safeZone = CONFIG.REEL.safeZoneByStage[Math.min(run.stage, 4)];
     let zoneLow = safeZone[0], zoneHigh = safeZone[1];
-    // wide_zone 효과: ±(8 + 4*lv) 확장
     const zoneExpand = wideZoneLv > 0 ? 8 + 4 * wideZoneLv : 0;
     zoneLow = Math.max(0, zoneLow - zoneExpand);
     zoneHigh = Math.min(100, zoneHigh + zoneExpand);
 
-    // 초록존 마커 표시
+    // calm_fish: 저항 구간 길이 감소
+    if (cast.fishState === 'resist' && calmFishLv > 0) {
+      cast.nextSwitchMs *= (1 - 0.3 * calmFishLv); // Lv1=0.7
+    }
+
+    // 초록존 마커
     qs('#tension-zone').style.bottom = zoneLow + '%';
     qs('#tension-zone').style.height = (zoneHigh - zoneLow) + '%';
 
-    // 자동으로 부드럽게 증감 (단순화)
-    let up = CONFIG.REEL.reelUpRate * (1 + 0.0); // MVP 자동
-    if (slowTensionLv > 0) up *= (1 + (slowTensionLv - 1) * 0); // Lv1=0.8, 단순화
     const isResist = cast.fishState === 'resist';
     const tensVar = (run.currentNode.bossMod?.effect?.reelTensionVar || 1);
-    const tensRise = up * (isResist ? CONFIG.REEL.resistTensionMult : 1) * tierMult * tensVar;
-    const tensDrop = CONFIG.REEL.reelDownRate;
-    // 천천히 변동
-    cast.tension += (isResist ? tensRise : -tensDrop) * 0.5 * dt;
-    // 진행도 (이완 중 가속)
-    const progRate = CONFIG.REEL.progressRate * (1 + (fastProgressLv - 1) * 0) * (isResist ? 1 : CONFIG.REEL.relaxProgressMult);
-    cast.progress += progRate * 0.5 * dt;
 
-    // 안전그물
+    // ===== 인터랙티브: 누르고 있을 때만 진행 =====
+    if (cast.reeling) {
+      // 누름: 텐션 상승 + 진행도 상승
+      const baseUp = CONFIG.REEL.reelUpRate;
+      const slowMult = slowTensionLv > 0 ? (0.8 - 0.05 * (slowTensionLv - 1)) : 1; // Lv1=0.8
+      const tensRise = baseUp * (isResist ? CONFIG.REEL.resistTensionMult : 1) * tierMult * tensVar * slowMult * 0.016;
+      cast.tension += tensRise;
+
+      const baseProg = CONFIG.REEL.progressRate;
+      const progMult = fastProgressLv > 0 ? (1 + 0.3 * (fastProgressLv - 1)) : 1; // Lv1=1.0
+      const progRise = baseProg * progMult * (isResist ? 1 : CONFIG.REEL.relaxProgressMult) * 0.008;
+      cast.progress += progRise;
+    } else {
+      // 안 누름: 텐션 자연 하락 + 진행도 정지
+      const baseDown = CONFIG.REEL.reelDownRate;
+      const autoMult = autoReelLv > 0 ? (1.4 + 0.2 * (autoReelLv - 1)) : 1; // Lv1=1.4
+      cast.tension -= baseDown * autoMult * 0.008;
+      // 진행도 그대로
+    }
+
+    // 안전그물: 텐션 100 도달 시 무효 (성공 처리)
     if (cast.tension >= 100) {
       if (jokerHas('safety_net') && !run.safetyNetUsed) {
         run.safetyNetUsed = true;
-        // 안전그물 발동 = 라인 파손 무효
         cast.tension = 99;
+        toast('안전 그물 발동!', 'good');
       }
     }
     if (cast.tension <= 0) {
@@ -341,7 +358,7 @@ function fishingTick(now) {
     }
     cast.progress = clamp(cast.progress, 0, 100);
 
-    // 텐션 표시
+    // 표시
     qs('#tension-fill').style.height = cast.tension + '%';
     qs('#tension-tick').style.bottom = cast.tension + '%';
     qs('#progress-fill').style.width = cast.progress + '%';
@@ -356,7 +373,6 @@ function fishingTick(now) {
       return requestAnimationFrame(fishingTick);
     }
     if (cast.progress >= 100) {
-      // 성공 — 초록존 이탈 여부
       const inZone = cast.tension >= zoneLow && cast.tension <= zoneHigh;
       finalizeCast(true, inZone);
       return requestAnimationFrame(fishingTick);
@@ -426,6 +442,12 @@ function finalizeCast(success, perfect) {
   const score = calcScore({ fish, sizeRoll, perfect, castAccuracy: cast.castAccuracy, stage: run.stage, castIndex: run.currentCastIdx + 1 });
 
   run.stageScore += score;
+  // 신규 어종 첫 등록 보상 (+20). registerEncyclopedia가 먼저 호출되어 count=1인 상태.
+  const isNewSpecies = meta.encyclopedia[fish.id] && meta.encyclopedia[fish.id].count === 1;
+  if (isNewSpecies) {
+    run.stageScore += 20;
+    toast('신규 어종! +20', 'good');
+  }
   run.stageStats.score += score;
   run.runStats.caughtFish.push({ id: fish.id, name: fish.name, size: sizeRoll, score });
   if (fish.size_max >= 60 || fish.tier >= 3) run.runStats.largeCatch += 1;
@@ -495,18 +517,28 @@ function calcScore(ctx) {
     const lv = j.level || 1;
     if (card.num.add) {
       if (matchCondition(card.num.cond, conditions)) {
-        const add = card.num.add.base + card.num.add.perLvl * (lv - 1);
-        // collector: 등록수 × v
+        // collector: 등록수 × (Lv+1) 점수 합
         if (card.id === 'collector') {
-          totalAdd += conditions.encyclopediaCount * (card.num.add.base + card.num.add.perLvl * (lv - 1));
+          const factor = (lv + 1);
+          totalAdd += conditions.encyclopediaCount * card.num.add.base * factor;
         } else {
-          totalAdd += add;
+          totalAdd += card.num.add.base + card.num.add.perLvl * (lv - 1);
         }
       }
     }
   }
   // 합 먼저
   total += totalAdd;
+
+  // 시그니처 보너스: 5장 채우면 ×1.15
+  if (run.signatureBonus) total *= 1.15;
+
+  // master_angler 별도: joker 개수 × 0.05 추가 곱
+  const master = run.joker.find(j => j.id === 'master_angler');
+  if (master) {
+    const extra = (master.level || 1) * 0.1 + run.joker.length * 0.05;
+    total *= 1 + extra;
+  }
 
   for (const j of run.joker) {
     const card = ALL_CARDS.find(c => c.id === j.id);
@@ -515,9 +547,9 @@ function calcScore(ctx) {
     if (card.num.mult) {
       if (matchCondition(card.num.cond, conditions)) {
         let mult = card.num.mult.base + card.num.mult.perLvl * (lv - 1);
-        // lucky_lure: 20% 확률
-        if (card.id === 'lucky_lure') {
-          if (Math.random() > 0.2) mult = 1;
+        // lucky_lure: 발동 시 콤보 +1 (다음 손에도 영향)
+        if (card.id === 'lucky_lure' && matchCondition(card.num.cond, conditions)) {
+          conditions.comboReel += 1;
         }
         // boss_mod: small_only ×0.7
         if (run.currentNode.bossMod?.effect?.scoreMult) {
@@ -538,7 +570,7 @@ function matchCondition(cond, ctx) {
     case 'maxSize':      return ctx.sizeRoll < cond.v;
     case 'accuracyAtLeast': return ctx.castAccuracy >= cond.v;
     case 'firstOfSpecies': return ctx.isFirstOfSpecies;
-    case 'comboContinued': return ctx.comboReel > 1;
+    case 'comboContinued': return ctx.comboReel >= 2;
     case 'stageIs':      return ctx.stage === cond.v;
     case 'perfectReel':  return ctx.perfect;
     case 'castIndexIs':  return ctx.castIndex === cond.v;
@@ -586,7 +618,15 @@ function addCardToJoker(cardId, silent) {
       run.joker.shift();
     }
     run.joker.push({ id: cardId, level: 1 });
-    if (!silent) toast(`비법 획득: ${ALL_CARDS.find(c => c.id === cardId).name}`, 'good');
+    if (!silent) {
+      const card = ALL_CARDS.find(c => c.id === cardId);
+      toast(`비법 획득: ${card.name}`, 'good');
+    }
+    // 시그니처 달성 체크
+    if (run.joker.length === run.jokerCapacity) {
+      run.signatureBonus = true;
+      toast('🏆 빌드 시그니처 완성! 모든 점수 ×1.15', 'good');
+    }
   }
 }
 
@@ -655,7 +695,7 @@ function enterReward() {
 
 function renderReward() {
   qs('#reward-reroll').textContent = run.rerollTokens;
-  qs('#reward-slots').textContent = `${run.joker.length} / ${run.jokerCapacity}`;
+  qs('#reward-slots').textContent = `${run.joker.length} / ${run.jokerCapacity}${run.signatureBonus ? ' 🏆' : ''}`;
   const wrap = qs('#reward-cards');
   wrap.innerHTML = '';
   for (const c of rewardCards) {
@@ -998,11 +1038,16 @@ function handleSpace(down) {
   if (cast.phase === 'CAST' && down) {
     // 게이지 멈춤 → 정확도 산출
     cast.accuracy = 1 - Math.abs(50 - cast.gaugePos) / 50; // 0~1
-    // 게이지 정확도 보정: 명세 0.8 + (정확도 * 0.4) → 0.8~1.2
-    // 게이지 50에서 멈추면 정확도 1.0
-    // 미끼 1 소모
-    run.bait -= 1;
-    if (run.bait < 0) run.bait = 0;
+    // 미끼 소모 (bait_master: 확률로 미소모)
+    const baitMasterLv = jokerLevel('bait_master');
+    const skipChance = baitMasterLv > 0 ? (0.1 + 0.1 * (baitMasterLv - 1)) : 0;
+    const skipped = Math.random() < skipChance;
+    if (!skipped) {
+      run.bait -= 1;
+      if (run.bait < 0) run.bait = 0;
+    } else {
+      toast('미끼 절약!', 'good');
+    }
     setFishingHUD();
     // DRIFT 진입
     cast.phase = 'DRIFT';
@@ -1018,11 +1063,15 @@ function handleSpace(down) {
       cast.reelTimeMs = CONFIG.REEL.timeLimitMs;
       cast.fishState = 'relax';
       cast.nextSwitchMs = randInt(500, 1200);
+      cast.reeling = false; // 누르고 있어야 시작
       setFishingPhase('REEL');
     } else {
       // 놓침
       finalizeCast(false, false);
     }
+  } else if (cast.phase === 'REEL') {
+    // 인터랙티브: 누르고 있으면 reeling=true, 떼면 false
+    cast.reeling = down;
   }
 }
 
