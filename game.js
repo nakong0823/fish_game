@@ -1195,7 +1195,7 @@ function finishStage() {
   const achieved = run.stageScore;
   const pass = achieved >= target;
   // 리롤 토큰 산정
-  const tokensGained = calcRerollTokens(run.stageStats);
+  const tokensGained = calcRerollTokens(run.stageStats, target);
   run.rerollTokens += tokensGained;
   run.stageStats.tokensGained = tokensGained;
 
@@ -1214,12 +1214,12 @@ function finishStage() {
   }
 }
 
-function calcRerollTokens(stats) {
+function calcRerollTokens(stats, target) {
   let t = 0;
   const r = CONFIG.REROLL;
   // 클리어 보너스는 finishStage 진입 시 항상 +1 (stage clear)
   t += r.clearBonus;
-  if (stats.score >= stats.target * r.overkillMult) t += r.overkillBonus;
+  if (target && stats.score >= target * r.overkillMult) t += r.overkillBonus;
   if (stats.perfect >= r.perfectCountForBonus) t += r.perfectBonus;
   if (stats.newFish.size > 0) t += r.newFishBonus;
   if (stats.bossBig) t += r.bossBigCatchBonus;
