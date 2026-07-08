@@ -562,8 +562,20 @@ function finalizeCast(success, perfect) {
   try { window.playSound(perfect ? 'perfect' : 'catch'); } catch (e) {}
   // 점수 팝업 (점수 자체)
   spawnScorePopup(`+${score}`, 'add', score >= 100);
-  // 점수 폭발 팝업 (큰 점수일 때)
-  if (score >= 200) spawnScorePopup('🔥 대박!', 'mult', true);
+  // 점수 폭발 팝업 (점수별 등급화)
+  if (score >= 500) {
+    spawnScorePopup('🔥🔥 신기록!', 'mult', true);
+    // 화면 흔들림 (강)
+    const screen = qs('#screen-fishing');
+    if (screen) {
+      screen.classList.add('is-shaking');
+      setTimeout(() => screen.classList.remove('is-shaking'), 500);
+    }
+  } else if (score >= 200) {
+    spawnScorePopup('🔥 대박!', 'mult', true);
+  } else if (score >= 100) {
+    spawnScorePopup('✨ 좋은 어종', 'mult', false);
+  }
   if (perfect) spawnScorePopup('⭐ 퍼펙트 ×1.3', 'mult', false);
   // 신규 어종 배너
   if (isNewSpecies) {
@@ -645,11 +657,18 @@ function calcScore(ctx) {
   // 시그니처 보너스: 5장 채우면 ×1.15
   if (run.signatureBonus) total *= 1.15;
 
-  // master_angler 별도: joker 개수 × 0.05 추가 곱
+  // master_angler: 데이터 박힌 extra 효과 적용 (Lv 자체 mult와 별도)
+  // num.mult.base × num.mult.perLvl(Lv-1) 외에 추가 곱
   const master = run.joker.find(j => j.id === 'master_angler');
   if (master) {
-    const extra = (master.level || 1) * 0.1 + run.joker.length * 0.05;
-    total *= 1 + extra;
+    const card = ALL_CARDS.find(c => c.id === 'master_angler');
+    const lv = master.level || 1;
+    // 1) Lv 자체 효과: base 1.6 + 0.2 per Lv
+    total *= 1.6 + 0.2 * (lv - 1);
+    // 2) 데이터 박힌 extra: jokerCount (master_angler 보유 시 joker 개수 × v)
+    if (card?.num?.extra?.kind === 'jokerCount') {
+      total *= 1 + run.joker.length * card.num.extra.v;
+    }
   }
 
   for (const j of run.joker) {
@@ -659,6 +678,8 @@ function calcScore(ctx) {
     if (card.num.mult) {
       if (matchCondition(card.num.cond, conditions)) {
         let mult = card.num.mult.base + card.num.mult.perLvl * (lv - 1);
+        // master_angler는 위에서 별도 처리 (중복 방지)
+        if (card.id === 'master_angler') continue;
         // lucky_lure: 발동 시 콤보 +1 (다음 손에도 영향)
         if (card.id === 'lucky_lure' && matchCondition(card.num.cond, conditions)) {
           conditions.comboReel += 1;
@@ -724,9 +745,15 @@ function addCardToJoker(cardId, silent) {
       }
     }
   } else {
+    // 슬롯 초과 시: 자동 폐기 대신 사용자에게 선택권 (현재는 add만, 폐기 UI는 별도)
     if (run.joker.length >= run.jokerCapacity) {
-      if (!silent) toast('슬롯 부족! 카드 폐기', 'bad');
-      // MVP: 가장 오래된 것 자동 폐기
+      if (!silent) {
+        toast('슬롯 가득! 카드 1개를 폐기해 주세요', 'bad');
+        // 보류: 슬롯 폐기 UI 모달 띄우기
+        showSlotDiscardChoice(cardId);
+        return;
+      }
+      // silent 호출 (진화 등)일 땐 자동 폐기
       run.joker.shift();
     }
     run.joker.push({ id: cardId, level: 1 });
@@ -753,6 +780,69 @@ function addCardToJoker(cardId, silent) {
       try { window.playSound('evolve'); } catch (e) {}
     }
   }
+}
+
+// 슬롯 가득 → 폐기할 카드 선택 모달
+function showSlotDiscardChoice(newCardId) {
+  const newCard = ALL_CARDS.find(c => c.id === newCardId);
+  if (!newCard) return;
+  // 진화 카드는 강하게 권장 (조건 만족한 보상이므로)
+  const isEvolved = newCard.isEvolved;
+  // 모달 만들기
+  const modal = document.createElement('div');
+  modal.className = 'modal-slot-discard';
+  modal.innerHTML = `
+    <div class="modal-slot-card">
+      <h3>${isEvolved ? '🌟 진화 카드 등장!' : '슬롯 가득! 1개 폐기 필요'}</h3>
+      <p>새 카드: <strong style="color:${RARITY_COLOR[newCard.rarity]}">${newCard.name}</strong> (${newCard.rarity}${isEvolved ? ' · 진화' : ''})</p>
+      <p class="modal-sub">${isEvolved ? '이 카드는 진화 조건을 만족한 강력한 보상입니다. 진화 카드를 받으려면 1개 폐기가 필요해요.' : '아래 기존 카드 중 1개를 폐기하거나, 새 카드를 받지 않을 수 있어요.'}</p>
+      <div class="discard-options">
+        <button class="btn btn-ghost" data-discard="cancel">← 새 카드 받지 않기</button>
+        ${run.joker.map((j, i) => {
+          const c = ALL_CARDS.find(x => x.id === j.id);
+          return `<button class="card rarity-${c.rarity} discard-card" data-discard-idx="${i}">
+            <div class="card-rarity">${c.rarity} · Lv.${j.level}</div>
+            <div class="card-name">${c.name}</div>
+            <div class="card-desc">${c.desc}</div>
+          </button>`;
+        }).join('')}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  // 폐기 처리
+  modal.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-discard], [data-discard-idx]');
+    if (!t) return;
+    if (t.dataset.discard === 'cancel') {
+      modal.remove();
+      toast('새 카드 받지 않음', 'good');
+      advanceAfterNode();
+      return;
+    }
+    const idx = parseInt(t.dataset.discardIdx);
+    if (!isNaN(idx) && idx >= 0 && idx < run.joker.length) {
+      const removed = run.joker[idx];
+      const removedCard = ALL_CARDS.find(c => c.id === removed.id);
+      run.joker.splice(idx, 1);
+      run.joker.push({ id: newCardId, level: 1 });
+      modal.remove();
+      toast(`${removedCard.name} 폐기 → ${newCard.name} 획득`, 'good');
+      try { window.playSound('reroll'); } catch (e) {}
+      // 시그니처
+      if (run.joker.length === run.jokerCapacity) {
+        run.signatureBonus = true;
+        toast('🏆 빌드 시그니처 완성!', 'good');
+        const tEl = document.createElement('div');
+        tEl.className = 'trophy-banner';
+        tEl.textContent = '🏆';
+        document.body.appendChild(tEl);
+        setTimeout(() => tEl.remove(), 2100);
+        try { window.playSound('evolve'); } catch (e) {}
+      }
+      advanceAfterNode();
+    }
+  });
 }
 
 function canEvolve(evo) {
