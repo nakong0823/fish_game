@@ -46,6 +46,67 @@ function toast(msg, kind = '') {
 }
 
 // ============================================================
+// v0.7 — 비주얼 헬퍼
+// ============================================================
+
+// 점수 순차 팝업 (Balatro 式)
+function spawnScorePopup(text, kind = 'mult', big = false) {
+  let wrap = document.querySelector('.score-popups');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.className = 'score-popups';
+    document.body.appendChild(wrap);
+  }
+  const el = document.createElement('div');
+  el.className = 'score-popup is-' + kind + (big ? ' is-big' : '');
+  el.textContent = text;
+  el.style.left = (40 + Math.random() * 20) + '%';
+  el.style.top  = (30 + Math.random() * 20) + '%';
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 1500);
+}
+
+// 어종 이모지 (이미지 없는 대신 분위기)
+const FISH_EMOJI = {
+  gobies:    '🐟',
+  rockfish:  '🐠',
+  mullet:    '🐟',
+  flatfish1: '🐟',
+  seabass:   '🐠',
+  blackbeam: '🐟',
+  greenling: '🐠',
+  conger:    '🐍',  // 장어
+  tuna:      '🐟',  // 대형
+  amberjack: '🐠',
+  snapper:   '🐠',
+  cutlass:   '🐟',
+  golden:    '✨',
+};
+
+// 새 어종 배너
+function spawnNewSpeciesBanner(fishName) {
+  const el = document.createElement('div');
+  el.className = 'new-species-banner';
+  el.textContent = `🐟 신규 어종! ${fishName} (+20)`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1900);
+}
+
+// 시그니처 배너 (RUN_MAP 상단)
+function renderSignatureBanner() {
+  const existing = qs('#signature-banner');
+  if (existing) existing.remove();
+  if (!run?.signatureBonus) return;
+  const header = qs('#run-map .run-header');
+  if (!header) return;
+  const div = document.createElement('div');
+  div.id = 'signature-banner';
+  div.className = 'signature-banner';
+  div.innerHTML = '🏆 빌드 시그니처 완성 — 모든 점수 ×1.15';
+  header.parentElement.insertBefore(div, header.nextSibling);
+}
+
+// ============================================================
 // 2. 저장 (localStorage angler_save_v1)
 // ============================================================
 const SAVE_KEY = 'angler_save_v1';
@@ -350,6 +411,11 @@ function fishingTick(now) {
         run.safetyNetUsed = true;
         cast.tension = 99;
         toast('안전 그물 발동!', 'good');
+        const tFill = qs('#tension-fill');
+        if (tFill) {
+          tFill.classList.add('is-saved');
+          setTimeout(() => tFill.classList.remove('is-saved'), 400);
+        }
       }
     }
     if (cast.tension <= 0) {
@@ -456,10 +522,21 @@ function finalizeCast(success, perfect) {
   setFishingHUD();
   setFishingPhase('RESULT');
   const sizeLabel = `${sizeRoll}cm`;
-  qs('#fish-line').textContent = `${fish.name} (${sizeLabel}) ${perfect ? '⭐ 퍼펙트' : ''}`;
+  const emoji = FISH_EMOJI[fish.id] || '🐟';
+  qs('#fish-line').innerHTML = `<span class="catch-fish">${emoji}</span><br>${fish.name} <span class="stat-value">(${sizeLabel})</span> ${perfect ? '⭐ 퍼펙트' : ''}`;
   qs('#fish-score').textContent = `+${score}`;
+  // 점수 카운트업 애니메이션
+  qs('#fish-score').classList.remove('count-up');
+  void qs('#fish-score').offsetWidth;
+  qs('#fish-score').classList.add('count-up');
+  // 점수 팝업 (점수 자체)
+  spawnScorePopup(`+${score}`, 'add', score >= 100);
+  // 신규 어종 배너
+  if (isNewSpecies) {
+    spawnNewSpeciesBanner(fish.name);
+  }
   cast.phase = 'CATCH';
-  cast.phaseT = 0.8;
+  cast.phaseT = 1.0; // 약간 길게
 }
 
 // ============================================================
@@ -703,15 +780,23 @@ function renderReward() {
     div.className = 'card rarity-' + c.rarity;
     const owned = run.joker.find(j => j.id === c.id);
     const lv = owned ? owned.level : 0;
+    // 효과 미리보기 (카드 데이터 기반)
+    let previewText = c.desc;
+    if (c.num?.mult) previewText += ` ×${c.num.mult.base}`;
+    if (c.num?.add) previewText += ` +${c.num.add.base}`;
+    if (c.num?.base && !c.num?.mult && !c.num?.add) previewText += ` (${c.num.base})`;
     div.innerHTML = `
       <div class="card-rarity">${c.rarity}${owned ? ` · Lv.${lv}` : ''}</div>
       <div class="card-name">${c.name}</div>
       <div class="card-desc">${c.desc}</div>
+      <div class="card-preview">${previewText}</div>
     `;
     div.addEventListener('click', () => {
-      addCardToJoker(c.id, false);
-      // 다음 노드 또는 보상→다음
-      advanceAfterNode();
+      div.classList.add('is-selected');
+      setTimeout(() => {
+        addCardToJoker(c.id, false);
+        advanceAfterNode();
+      }, 250);
     });
     wrap.appendChild(div);
   }
@@ -748,16 +833,12 @@ function renderShop() {
   // 미끼 구매 옵션
   const bait = document.createElement('div');
   bait.className = 'shop-item is-buyable';
-  bait.innerHTML = `<div class="shop-item-name">미끼 +4</div><div class="shop-item-cost">🪱 4 → +4</div>`;
+  bait.innerHTML = `<div class="shop-item-name">미끼 +4</div><div class="shop-item-cost">🪱 3 → +4 (순 +1)</div>`;
   bait.addEventListener('click', () => {
-    if (run.bait >= 4) {
-      run.bait -= 4;
-      const got = Math.min(99, run.bait + 8);
-      run.bait = got + 4; // 표시는 원본, +4 적용
-      // 단순화: bait -= 4; +4 회복 (순환 0)
-      run.bait += 0; // net 0
-      run.bait = Math.max(0, run.bait);
-      toast('미끼 거래 완료', 'good');
+    if (run.bait >= 3) {
+      run.bait -= 3;
+      run.bait = Math.min(99, run.bait + 4);
+      toast('미끼 거래 완료 (+1)', 'good');
       renderShop();
     } else { toast('미끼 부족', 'bad'); }
   });
@@ -800,11 +881,12 @@ function renderMetaShop() {
   for (const item of META_SHOP) {
     const st = metaShopState(item);
     const div = document.createElement('div');
-    div.className = 'shop-item ' + (st.owned ? 'is-locked' : 'is-buyable');
+    div.className = 'shop-item ' + (st.owned ? 'is-owned' : 'is-buyable');
     div.innerHTML = `
       <div class="shop-item-name">${item.name}</div>
-      <div class="shop-item-cost">${st.owned ? '✅ 보유' : `🐟 ${item.cost}`}</div>
+      <div class="shop-item-cost">${st.owned ? '보유 중' : `🐟 ${item.cost}`}</div>
       <div class="shop-item-desc">${item.desc}</div>
+      <div class="shop-item-effect">→ 다음 출조부터 자동 적용</div>
     `;
     if (!st.owned) {
       div.addEventListener('click', () => buyMetaShop(item));
@@ -824,6 +906,7 @@ function showRunMap() {
   qs('#run-map-bait').textContent = run.bait;
   qs('#run-map-reroll').textContent = run.rerollTokens;
   renderPath();
+  renderSignatureBanner();
 }
 
 function renderPath() {
@@ -860,6 +943,56 @@ function renderPath() {
     }
     board.appendChild(col);
   }
+  // SVG 연결선 (이전/현재/다음 노드만)
+  drawPathLines();
+}
+
+function drawPathLines() {
+  // 기존 SVG 제거
+  const oldSvg = qs('.path-svg');
+  if (oldSvg) oldSvg.remove();
+  const board = qs('#path-board');
+  if (!board) return;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'path-svg');
+  // 보드 크기 측정 (요청 후 적용)
+  const cols = board.querySelectorAll('.path-col');
+  if (cols.length < 2) return;
+  svg.style.width = board.offsetWidth + 'px';
+  svg.style.height = board.offsetHeight + 'px';
+  // 인접 열의 노드들을 잇는 직선
+  const lines = [];
+  for (let c = 0; c < cols.length - 1; c++) {
+    const cur = cols[c].getBoundingClientRect();
+    const next = cols[c + 1].getBoundingClientRect();
+    const boardRect = board.getBoundingClientRect();
+    // 간단: 각 노드의 중심에서 다음 노드로
+    const curNodes = cols[c].querySelectorAll('.path-node');
+    const nextNodes = cols[c + 1].querySelectorAll('.path-node');
+    curNodes.forEach((cn, i) => {
+      nextNodes.forEach((nn, j) => {
+        const r1 = cn.getBoundingClientRect();
+        const r2 = nn.getBoundingClientRect();
+        const x1 = r1.right - boardRect.left;
+        const y1 = r1.top + r1.height / 2 - boardRect.top;
+        const x2 = r2.left - boardRect.left;
+        const y2 = r2.top + r2.height / 2 - boardRect.top;
+        lines.push([x1, y1, x2, y2]);
+      });
+    });
+  }
+  for (const [x1, y1, x2, y2] of lines) {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x1);
+    line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2);
+    line.setAttribute('y2', y2);
+    line.setAttribute('stroke', '#475569');
+    line.setAttribute('stroke-width', '2');
+    line.setAttribute('opacity', '0.4');
+    svg.appendChild(line);
+  }
+  board.appendChild(svg);
 }
 
 function iconOfType(t) {
@@ -1006,6 +1139,37 @@ function renderMeta() {
   const caught = Object.keys(meta.encyclopedia).length;
   qs('#meta-codex-count').textContent = `${caught} / ${FISH.length}`;
   qs('#title-renown').textContent = `명성 ${meta.renown}`;
+  renderProgressGraph();
+}
+
+// 진행 그래프: 스테이지별 목표 vs 최고점
+function renderProgressGraph() {
+  // 기존 그래프 제거
+  const old = qs('#progress-graph');
+  if (old) old.remove();
+  const hubGrid = qs('#screen-meta .hub-grid');
+  if (!hubGrid) return;
+  const div = document.createElement('div');
+  div.id = 'progress-graph';
+  div.className = 'progress-graph';
+  const best = meta.stats.bestRunScore || 0;
+  const targets = CONFIG.STAGE_TARGET;
+  const totalTarget = targets[targets.length - 1];
+  for (let i = 0; i < 3; i++) {
+    const target = targets[i];
+    const reached = Math.min(best, target);
+    const heightPct = (reached / Math.max(totalTarget, best, 1)) * 100;
+    const bar = document.createElement('div');
+    bar.className = 'progress-bar';
+    bar.style.height = heightPct + '%';
+    bar.title = `스테이지 ${i + 1}: ${reached} / ${target}`;
+    const label = document.createElement('div');
+    label.className = 'progress-bar-label';
+    label.textContent = `${i + 1}단계 (${target})`;
+    bar.appendChild(label);
+    div.appendChild(bar);
+  }
+  hubGrid.parentElement.insertBefore(div, hubGrid.nextSibling);
 }
 
 // ============================================================
