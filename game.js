@@ -499,8 +499,11 @@ function finalizeCast(success, perfect) {
     run.runStats.comboReel = 0;
     setFishingHUD();
     setFishingPhase('RESULT');
-    qs('#fish-line').textContent = '💨 놓침! 미끼만 소모';
+    qs('#fish-line').innerHTML = `<div style="font-size:48px;">💨</div><div style="font-size:18px;margin-top:8px;">놓침! 미끼만 소모</div>`;
     qs('#fish-score').textContent = '+0';
+    qs('#fish-score').classList.remove('count-up');
+    void qs('#fish-score').offsetWidth;
+    qs('#fish-score').classList.add('count-up');
     try { window.playSound('miss'); } catch (e) {}
     cast.phase = 'MISS';
     cast.phaseT = 0.8;
