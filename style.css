@@ -259,6 +259,21 @@ button {
   position: relative;
   animation: bite-pulse 0.6s ease-out;
 }
+/* BITE wait 상태: 게이지가 차오르듯이 조용히 (입질 대기) */
+#phase-bite.is-bite-wait .bite-circle {
+  background: radial-gradient(circle, #64748b, #1e293b);
+  animation: bite-wait 1.2s ease-in-out infinite;
+}
+#phase-bite.is-bite-wait .bite-pulse { animation: none; opacity: 0.4; }
+@keyframes bite-wait {
+  0%, 100% { transform: scale(0.95); opacity: 0.7; }
+  50%      { transform: scale(1.05); opacity: 1; }
+}
+/* BITE hit 상태: 빨갛게 펄스 (입질!) */
+#phase-bite.is-bite-hit .bite-circle {
+  background: radial-gradient(circle, #ef4444, #7f1d1d);
+  animation: bite-pulse 0.6s ease-out;
+}
 @keyframes bite-pulse {
   0%   { transform: scale(.6); opacity: 0; }
   50%  { transform: scale(1.2); opacity: 1; }

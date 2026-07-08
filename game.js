@@ -334,6 +334,12 @@ function setFishingPhase(p) {
     const el = qs('#phase-' + k);
     if (el) el.classList.toggle('hidden', k !== p.toLowerCase());
   }
+  // BITE sub-state: 'wait' (드리프트 중) | 'hit' (입질)
+  const biteEl = qs('#phase-bite');
+  if (biteEl) {
+    biteEl.classList.toggle('is-bite-wait', p.toLowerCase() === 'bite' && cast?.biteState === 'wait');
+    biteEl.classList.toggle('is-bite-hit',  p.toLowerCase() === 'bite' && cast?.biteState === 'hit');
+  }
 }
 
 function setFishingHUD() {
@@ -354,13 +360,6 @@ function fishingTick(now) {
     if (cast.gaugePos >= 100) { cast.gaugePos = 100; cast.gaugeDir = -1; }
     if (cast.gaugePos <= 0)   { cast.gaugePos = 0;   cast.gaugeDir = 1; }
     qs('#cast-marker').style.left = cast.gaugePos + '%';
-  } else if (cast.phase === 'DRIFT') {
-    cast.bitDelayMs -= dt * 1000;
-    if (cast.bitDelayMs <= 0) {
-      cast.phase = 'BITE';
-      cast.biteStartMs = now;
-      setFishingPhase('BITE');
-    }
   } else if (cast.phase === 'REEL') {
     cast.reelTimeMs -= dt * 1000;
     if (cast.reelTimeMs <= 0) {
@@ -926,9 +925,12 @@ function enterReward() {
   const isHotspot = run.currentNode.type === 'hotspot';
   rewardCards = drawRewardCards(3, isHotspot);
   run.rerollInScreen = 0;
+  rewardSelecting = false; // 새 보상 진입 시 선택 잠금 해제
   showScreen('reward');
   renderReward();
 }
+
+let rewardSelecting = false; // 보상 카드 선택 진행 중 가드 (연타/다중 선택 방지)
 
 function renderReward() {
   qs('#reward-reroll').textContent = run.rerollTokens;
@@ -953,6 +955,14 @@ function renderReward() {
       <div class="card-preview">${previewText}</div>
     `;
     div.addEventListener('click', () => {
+      // 진행 중 가드: 1장 선택이 끝나기 전엔 다른 카드 무시
+      if (rewardSelecting) return;
+      rewardSelecting = true;
+      // 모든 형제 카드 즉시 비활성화 (시각 + 클릭 차단)
+      wrap.querySelectorAll('.card').forEach(el => {
+        el.classList.add('is-disabled');
+        el.style.pointerEvents = 'none';
+      });
       div.classList.add('is-selected');
       // 진화 카드는 진화 사운드 + 화면 흔들림
       if (c.isEvolved) {
@@ -990,6 +1000,7 @@ function rerollReward() {
   run.rerollTokens -= cost;
   const isHotspot = run.currentNode.type === 'hotspot';
   rewardCards = drawRewardCards(3, isHotspot);
+  rewardSelecting = false; // 리롤하면 다시 선택 가능
   renderReward();
 }
 
@@ -1414,12 +1425,29 @@ function handleSpace(down) {
       toast('미끼 절약!', 'good');
     }
     setFishingHUD();
-    // DRIFT 진입
-    cast.phase = 'DRIFT';
+    // BITE 'wait' 상태로 즉시 전환 (CAST 게이지 화면은 사라짐 — 입질 두 번처럼 보이지 않게)
+    cast.phase = 'BITE';
+    cast.biteState = 'wait';
+    setFishingPhase('BITE');
     cast.bitDelayMs = randInt(CONFIG.BITE_DELAY_MS[0], CONFIG.BITE_DELAY_MS[1]);
+    // 입질 카운트다운
+    cast.biteCountdownTimer = setTimeout(() => {
+      if (cast && cast.phase === 'BITE' && cast.biteState === 'wait') {
+        cast.biteState = 'hit';
+        cast.biteStartMs = performance.now();
+        try { window.playSound('bite'); } catch (e) {}
+        const biteEl = qs('#phase-bite');
+        if (biteEl) {
+          biteEl.classList.remove('is-bite-wait');
+          biteEl.classList.add('is-bite-hit');
+        }
+      }
+    }, cast.bitDelayMs);
   } else if (cast.phase === 'BITE' && down) {
     // 훅셋
+    if (cast.biteState !== 'hit') return; // 입질 전 탭은 무시
     const elapsed = performance.now() - cast.biteStartMs;
+    if (cast.biteCountdownTimer) { clearTimeout(cast.biteCountdownTimer); cast.biteCountdownTimer = null; }
     if (elapsed <= cast.bitWindow) {
       try { window.playSound('hook'); } catch (e) {}
       // REEL 진입
@@ -1469,8 +1497,16 @@ document.addEventListener('click', (e) => {
 // ============================================================
 const _origAdvance = advanceAfterNode;
 advanceAfterNode = function() {
+  if (!run) { _origAdvance(); return; }
+  // 보상 화면이 이미 떠 있으면, 다음 호출은 _origAdvance로 (다음 노드 진행)
+  // → 같은 보상 화면을 무한히 띄우지 않음
+  if (rewardSelecting || (document.querySelector('#screen-reward') && !document.querySelector('#screen-reward').classList.contains('hidden'))) {
+    rewardSelecting = false;
+    _origAdvance();
+    return;
+  }
   // 보상 화면이 필요한 노드 (fishing/hotspot 완료 후)?
-  if (run && (run.currentNode?.type === 'fishing' || run.currentNode?.type === 'hotspot')) {
+  if (run.currentNode?.type === 'fishing' || run.currentNode?.type === 'hotspot') {
     enterReward();
     return;
   }
