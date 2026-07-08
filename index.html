@@ -3,149 +3,199 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Case & Reel — 캐주얼 웹 낚시</title>
-  <meta name="description" content="Case & Reel — 캐주얼 웹 낚시 게임. CAST → BITE → REEL 3박자." />
+  <title>낚시 비법 — Angler's Secret</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main id="app">
-    <!-- 14-2: 게임 소개/필수 페이지 링크는 후속 단계에서 sidebar/nav로 추가. -->
-
-    <!-- 게임 캔버스 -->
-    <canvas id="game" width="960" height="540" aria-label="낚시 게임 캔버스"></canvas>
-
-    <!-- 신기록 비네트 이펙트 -->
-    <div id="vignette" class="vignette hidden" aria-hidden="true"></div>
-
-    <!-- HUD (DOM 오버레이) -->
-    <div id="hud" aria-hidden="false">
-      <div id="hud-top">
-        <div id="score">SCORE <strong>0</strong></div>
-        <div id="combo" class="hud-combo hidden">×<strong>0</strong></div>
-        <div id="flurry" class="hud-flurry hidden">🔥 <strong>0</strong>s</div>
-        <div id="bait" title="남은 미끼">🪱 <strong>10</strong></div>
-        <div id="coins" title="보유 코인">🪙 <strong>0</strong></div>
+    <!-- ============== TITLE ============== -->
+    <section id="screen-title" class="screen">
+      <div class="title-wrap">
+        <h1 class="title-h1">낚시 비법</h1>
+        <p class="title-sub">Angler's Secret · 로그라이크 낚시</p>
+        <button class="btn btn-primary btn-lg" data-action="goto-meta">출조하기</button>
+        <button class="btn btn-ghost" data-action="goto-codex">도감</button>
+        <p class="title-foot" id="title-renown">명성 0</p>
       </div>
-      <!-- 시간대 인디케이터 (좌하단) -->
-      <div id="time-indicator" class="time-indicator">
-        <span class="ti-name" id="time-name">낮</span>
-        <span class="ti-dots">
-          <span class="ti-dot"></span><span class="ti-dot"></span><span class="ti-dot"></span><span class="ti-dot"></span>
-        </span>
-      </div>
+    </section>
 
-      <!-- 토스트 영역 (PERFECT / FAIL / MISS / +점수) -->
-      <div id="toast" class="toast hidden"></div>
-
-      <!-- 1단계에서는 어종 1종이라 도감 등록 훅만 표시. -->
-      <!-- 도감 카드 영역은 후속 단계에서 #codex-panel 등으로 추가. -->
-    </div>
-
-    <!-- 결과 모달 (RESULT 상태) -->
-    <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <div class="modal-card">
-        <h2 id="result-title" class="result-title">Case &amp; Reel · 출조 결과</h2>
-        <div class="result-hero">
-          <p class="result-hero-label">SCORE</p>
-          <p class="result-hero-score" id="final-score">0</p>
-          <p class="result-hero-sub"><span id="final-catch">0</span>마리 · 🪙 <span id="final-coins">0</span></p>
+    <!-- ============== META_HUB ============== -->
+    <section id="screen-meta" class="screen hidden">
+      <header class="hub-header">
+        <h2>마을</h2>
+        <div class="hub-stats">
+          <span>🐟 <strong id="meta-renown">0</strong> 명성</span>
+          <span>📖 출조 <strong id="meta-total-runs">0</strong></span>
+          <span>🏆 최고 <strong id="meta-best-score">0</strong></span>
         </div>
-        <div class="result-stats" id="result-stats">
-          <div class="stat"><span class="stat-label">최장 콤보</span><span class="stat-value" id="stat-combo">0</span></div>
-          <div class="stat"><span class="stat-label">FLURRY</span><span class="stat-value" id="stat-flurry">0×</span></div>
+      </header>
+      <div class="hub-grid">
+        <button class="hub-card hub-primary" data-action="start-run">
+          <span class="hub-icon">🎣</span>
+          <span class="hub-title">출조하기</span>
+          <span class="hub-desc">15~20분 한 판</span>
+        </button>
+        <button class="hub-card" data-action="goto-codex">
+          <span class="hub-icon">📖</span>
+          <span class="hub-title">도감</span>
+          <span class="hub-desc" id="meta-codex-count">0 / 13</span>
+        </button>
+        <button class="hub-card" data-action="goto-shop">
+          <span class="hub-icon">🛒</span>
+          <span class="hub-title">명성 상점</span>
+          <span class="hub-desc">영구 해금</span>
+        </button>
+        <button class="hub-card" data-action="goto-title">
+          <span class="hub-icon">↩</span>
+          <span class="hub-title">타이틀</span>
+          <span class="hub-desc">돌아가기</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ============== RUN_MAP (경로) ============== -->
+    <section id="screen-run-map" class="screen hidden">
+      <header class="run-header">
+        <h2 id="run-map-stage-title">스테이지 1 · 동네 방파제</h2>
+        <div class="run-stats">
+          <span>🎯 <strong id="run-map-target">30</strong></span>
+          <span>점수 <strong id="run-map-score">0</strong></span>
+          <span>🪱 <strong id="run-map-bait">12</strong></span>
+          <span>🔄 <strong id="run-map-reroll">2</strong></span>
         </div>
-        <div id="result-badge" class="result-badge"></div>
-        <div id="result-summary" class="result-summary"></div>
-        <div id="result-next" class="result-next"></div>
-        <div id="result-meta" class="result-meta"></div>
-        <button id="again" class="primary">한 판 더 (스페이스 / 클릭)</button>
-        <button id="btn-shop" class="secondary">상점 (SHOP)</button>
-        <button id="btn-codex" class="secondary">도감 (CODEX)</button>
+      </header>
+      <div class="path-board" id="path-board"></div>
+      <div class="run-map-foot">
+        <button class="btn btn-ghost" data-action="goto-meta">포기</button>
       </div>
-    </div>
+    </section>
 
-    <!-- SHOP 오버레이 (SHOP 상태) -->
-    <div id="shop" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="shop-title">
-      <div class="shop-card-wrapper">
-        <div class="shop-header">
-          <h2 id="shop-title">SHOP · 장비 업그레이드</h2>
-          <p class="shop-coins">🪙 <strong id="shop-coins">0</strong></p>
+    <!-- ============== NODE FISHING (캐스팅 3단계) ============== -->
+    <section id="screen-fishing" class="screen hidden">
+      <header class="run-header">
+        <h2 id="fishing-stage-title">낚시 중</h2>
+        <div class="run-stats">
+          <span>🎯 <strong id="fishing-target">30</strong></span>
+          <span>점수 <strong id="fishing-score">0</strong></span>
+          <span>🪱 <strong id="fishing-bait">12</strong></span>
+          <span id="fishing-cast-info">1 / 2 손</span>
         </div>
-        <div id="shop-list" class="shop-list"></div>
-        <button id="btn-shop-close" class="secondary">닫기</button>
-      </div>
-    </div>
-
-    <!-- 일일 보너스 모달 (첫 출조 시) -->
-    <div id="daily-bonus" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="daily-title">
-      <div class="daily-card">
-        <h2 id="daily-title" class="daily-title">🎁 오늘의 출조 보너스</h2>
-        <p class="daily-streak" id="daily-streak">1일 연속 출조</p>
-        <p class="daily-bonus-line" id="daily-bonus-line">🪙 3 + 미끼 1</p>
-        <button id="daily-claim" class="primary">수령하고 출조 시작</button>
-      </div>
-    </div>
-
-    <!-- 일시정지 모달 (P / Esc) -->
-    <div id="pause" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title">
-      <div class="pause-card">
-        <h2 id="pause-title" class="pause-title">⏸ 일시정지</h2>
-        <p class="pause-hint">P 또는 Esc 키로 재개</p>
-        <button id="btn-resume" class="primary">계속하기</button>
-        <button id="btn-quit" class="secondary">타이틀로</button>
-      </div>
-    </div>
-
-    <!-- 사운드 토글 -->
-    <button id="btn-sound" class="sound-toggle" aria-label="사운드 토글">🔊</button>
-
-    <!-- CODEX 오버레이 (CODEX 상태) -->
-    <div id="codex" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="codex-title">
-      <div class="codex-wrapper">
-        <div class="codex-header">
-          <h2 id="codex-title">CODEX · <span id="codex-title-region">도감</span></h2>
-          <p class="codex-rate">수집 <strong id="codex-rate">0 / 0</strong></p>
+      </header>
+      <div class="fishing-wrap">
+        <div id="phase-cast" class="phase-pane">
+          <div class="cast-gauge">
+            <div class="cast-gauge-fill" id="cast-fill"></div>
+            <div class="cast-gauge-zone" id="cast-zone"></div>
+            <div class="cast-gauge-marker" id="cast-marker"></div>
+          </div>
+          <p class="phase-hint">스페이스바(또는 화면 탭)로 멈추세요</p>
         </div>
-        <p class="codex-live" id="codex-live" style="display:none">⭐ 이번 주의 대물: <strong id="codex-live-name"></strong></p>
-        <div id="codex-list" class="codex-list"></div>
-        <button id="btn-codex-close" class="secondary">닫기</button>
-      </div>
-    </div>
-
-    <!-- 타이틀 오버레이 (TITLE 상태) -->
-    <div id="title" class="overlay">
-      <div class="overlay-card">
-        <h1>Case &amp; Reel</h1>
-        <p class="tagline">CAST · BITE · REEL</p>
-        <p class="hint">스페이스 / 클릭으로 시작</p>
-        <span id="title-streak" class="title-streak" style="display:none">🔥 1일 연속</span>
-        <div class="title-buttons">
-          <button id="btn-shop-title" class="secondary">SHOP</button>
-          <button id="btn-codex-title" class="secondary">CODEX</button>
+        <div id="phase-bite" class="phase-pane hidden">
+          <div class="bite-circle"><div class="bite-pulse"></div></div>
+          <p class="phase-hint">입질! 스페이스바(또는 탭) 당겨!</p>
+        </div>
+        <div id="phase-reel" class="phase-pane hidden">
+          <div class="reel-area">
+            <div class="reel-tension">
+              <div class="reel-tension-fill" id="tension-fill"></div>
+              <div class="reel-tension-zone" id="tension-zone"></div>
+              <div class="reel-tension-tick" id="tension-tick"></div>
+            </div>
+            <div class="reel-progress"><div class="reel-progress-fill" id="progress-fill"></div></div>
+            <div class="reel-state" id="reel-state">대기</div>
+            <div class="reel-time" id="reel-time">12.0s</div>
+          </div>
+          <p class="phase-hint">누르고 있으면 릴 감음 / 떼면 멈춤</p>
+        </div>
+        <div id="phase-result" class="phase-pane hidden">
+          <p class="result-line" id="fish-line">…</p>
+          <p class="result-score" id="fish-score">+0</p>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- ============================================================
-         확장 훅 (1단계 비활성, 후속 단계에서 사용)
-         - #codex-panel : 도감(어종·크기 기록·수집률)
-         - #shop-panel  : 상점(3축 업그레이드, 코인)
-         - #ads-top / #ads-bottom : 에드센스 자동광고 슬롯
-         - data-layer : 어획/업그레이드/구매 이벤트 후킹
-         ============================================================ -->
-    <!--
-    <!-- AdSense slot: 페이지 상단/하단 반응형 광고 -->
-    <!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXX" crossorigin="anonymous"></script> -->
-    <!-- <ins class="adsbygoogle" ... ></ins> -->
-    -->
+    <!-- ============== CARD REWARD ============== -->
+    <section id="screen-reward" class="screen hidden">
+      <header class="run-header">
+        <h2>비법 카드 선택</h2>
+        <div class="run-stats">
+          <span>🔄 리롤 <strong id="reward-reroll">2</strong></span>
+          <span>슬롯 <strong id="reward-slots">0</strong> / 5</span>
+        </div>
+      </header>
+      <div class="reward-cards" id="reward-cards"></div>
+      <div class="reward-foot">
+        <button class="btn btn-ghost" data-action="reroll-reward">🔄 리롤 (1토큰)</button>
+      </div>
+    </section>
 
-    <!--
-    <!-- 도감 등록 훅 (game.js CATCH 처리 지점)
-         // codex.onCatch(fishId, sizeCm) — 후속 단계에서 구현
-    -->
-    -->
+    <!-- ============== SHOP (어구점 노드) ============== -->
+    <section id="screen-shop" class="screen hidden">
+      <header class="run-header">
+        <h2>어구점</h2>
+        <div class="run-stats">
+          <span>🎯 <strong id="shop-target">30</strong></span>
+          <span>점수 <strong id="shop-score">0</strong></span>
+          <span>🪱 <strong id="shop-bait">12</strong></span>
+        </div>
+      </header>
+      <div class="shop-body" id="shop-body"></div>
+      <div class="shop-foot">
+        <button class="btn btn-ghost" data-action="reroll-shop">🔄 리롤</button>
+        <button class="btn btn-primary" data-action="leave-shop">나가기</button>
+      </div>
+    </section>
+
+    <!-- ============== META SHOP (명성 상점) ============== -->
+    <section id="screen-meta-shop" class="screen hidden">
+      <header class="hub-header">
+        <h2>명성 상점</h2>
+        <div class="hub-stats">
+          <span>🐟 <strong id="meta-shop-renown">0</strong></span>
+        </div>
+      </header>
+      <div class="meta-shop-body" id="meta-shop-body"></div>
+      <div class="meta-shop-foot">
+        <button class="btn btn-ghost" data-action="goto-meta">← 마을</button>
+      </div>
+    </section>
+
+    <!-- ============== CODEX (도감) ============== -->
+    <section id="screen-codex" class="screen hidden">
+      <header class="hub-header">
+        <h2>도감</h2>
+        <div class="hub-stats"><span id="codex-count">0 / 13</span></div>
+      </header>
+      <div class="codex-grid" id="codex-grid"></div>
+      <div class="meta-shop-foot">
+        <button class="btn btn-ghost" data-action="goto-meta">← 마을</button>
+      </div>
+    </section>
+
+    <!-- ============== STAGE_RESULT ============== -->
+    <section id="screen-stage-result" class="screen hidden">
+      <header class="run-header"><h2 id="stage-result-title">스테이지 결과</h2></header>
+      <div class="stage-result-body" id="stage-result-body"></div>
+      <div class="stage-result-foot">
+        <button class="btn btn-primary" id="stage-result-next">다음 스테이지 →</button>
+      </div>
+    </section>
+
+    <!-- ============== RUN_RESULT ============== -->
+    <section id="screen-run-result" class="screen hidden">
+      <header class="run-header"><h2 id="run-result-title">출조 종료</h2></header>
+      <div class="run-result-body" id="run-result-body"></div>
+      <div class="run-result-foot">
+        <button class="btn btn-primary" data-action="ad-revive">📺 광고 보고 부활 (미끼+4)</button>
+        <button class="btn btn-ghost" data-action="goto-meta">마을로</button>
+      </div>
+    </section>
+
+    <!-- ============== Toast ============== -->
+    <div id="toast" class="toast hidden"></div>
   </main>
 
-  <script src="game.js" defer></script>
+  <script src="data.js"></script>
+  <script src="game.js"></script>
 </body>
 </html>
