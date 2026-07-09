@@ -2567,4 +2567,25 @@ window.addEventListener('DOMContentLoaded', () => {
   renderMeta();
   updateTitleForOnboarding();
   showScreen('title');
+
+  // v2: 첫 방문 시 (튜토리얼 안 끝남) 인트로 모달 자동 표시
+  if (!meta.tutorialDone && !meta.introShown) {
+    meta.introShown = true;
+    save();
+    setTimeout(showIntroModal, 400);
+  }
 });
+
+function showIntroModal() {
+  const modal = qs('#intro-modal');
+  const btn = qs('#intro-modal-btn');
+  if (!modal || !btn) return;
+  modal.classList.remove('hidden');
+  const newBtn = btn.cloneNode(true);
+  btn.parentNode.replaceChild(newBtn, btn);
+  newBtn.addEventListener('click', () => {
+    modal.classList.add('hidden');
+    // 낚시 배우기 시작
+    qs('#title-start-btn').click();
+  }, { once: true });
+}
