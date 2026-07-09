@@ -83,6 +83,22 @@
         </div>
       </header>
       <div id="tutorial-hint" class="tutorial-hint hidden"></div>
+      <div id="tutorial-step-indicator" class="tutorial-step-indicator hidden">
+        <span class="dot active" data-step="1"></span>
+        <span class="dot" data-step="2"></span>
+        <span class="dot" data-step="3"></span>
+      </div>
+
+      <!-- 튜토리얼 풀스크린 오버레이 v2 (각 캐스팅마다 1개) -->
+      <div id="tutorial-overlay" class="tutorial-overlay hidden">
+        <div class="tutorial-card">
+          <div class="tutorial-emoji" id="tutorial-emoji">🎯</div>
+          <h2 class="tutorial-title" id="tutorial-title">캐스팅</h2>
+          <p class="tutorial-desc" id="tutorial-desc">낚싯줄을 던져요.<br/>초록색 구간일 때 손을 떼세요!</p>
+          <button class="btn btn-primary btn-lg" id="tutorial-overlay-btn">알겠어요!</button>
+        </div>
+      </div>
+
       <div class="fishing-wrap">
         <div id="phase-cast" class="phase-pane">
           <div class="cast-scene">

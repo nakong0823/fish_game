@@ -359,7 +359,62 @@ function enterTutorialCasting() {
   run.currentCastIdx = run.tutorialCatches;
   run.castsTotal = 3;
 
-  enterCasting();
+  // v2: 캐스팅 진입 시 풀스크린 오버레이로 1줄 가이드
+  showTutorialOverlay(run.tutorialCatches, () => {
+    enterCasting();
+  });
+}
+
+const TUTORIAL_STEPS = [
+  { emoji: '🎯', title: 'STEP 1 · 캐스팅', desc: '낚싯줄을 던져요.<br/><strong>초록 구간</strong>일 때 손을 떼면 정확하게 던져집니다!' },
+  { emoji: '🐟', title: 'STEP 2 · 입질', desc: '물고기가 미끼를 물어요.<br/>링이 <strong>다 차면</strong> 즉시 탭! 늦으면 놓칩니다.' },
+  { emoji: '⚡', title: 'STEP 3 · 릴링', desc: '물고기를 끌어올려요.<br/><strong>파랑(이완)</strong>일 때 누르고, <strong>빨강(저항)</strong>일 때 살짝!' },
+];
+
+function showTutorialOverlay(stepIdx, onDismiss) {
+  const overlay = qs('#tutorial-overlay');
+  const emoji = qs('#tutorial-emoji');
+  const title = qs('#tutorial-title');
+  const desc = qs('#tutorial-desc');
+  const btn = qs('#tutorial-overlay-btn');
+  const indicator = qs('#tutorial-step-indicator');
+  if (!overlay) { onDismiss && onDismiss(); return; }
+
+  const step = TUTORIAL_STEPS[stepIdx] || TUTORIAL_STEPS[0];
+  if (emoji) emoji.textContent = step.emoji;
+  if (title) title.textContent = step.title;
+  if (desc) desc.innerHTML = step.desc;
+
+  // 진행 표시기 업데이트
+  if (indicator) {
+    indicator.classList.remove('hidden');
+    indicator.querySelectorAll('.dot').forEach((d, i) => {
+      d.classList.remove('active', 'done');
+      if (i < stepIdx) d.classList.add('done');
+      if (i === stepIdx) d.classList.add('active');
+    });
+  }
+
+  // 마지막 단계는 텍스트 다르게
+  if (btn) {
+    if (stepIdx === TUTORIAL_STEPS.length - 1) {
+      btn.textContent = '🎣 3번째 캐스팅 시작!';
+    } else {
+      btn.textContent = '알겠어요!';
+    }
+  }
+
+  overlay.classList.remove('hidden');
+
+  // 새 핸들러 (이전 것 덮어쓰기)
+  if (btn) {
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    newBtn.addEventListener('click', () => {
+      overlay.classList.add('hidden');
+      onDismiss && onDismiss();
+    }, { once: true });
+  }
 }
 
 function finishTutorial() {
@@ -368,14 +423,69 @@ function finishTutorial() {
 
   run = null;
   cast = null;
+
+  // v2: 튜토리얼 종료 후 → 카드 보상 화면 → META_HUB
   applyTimeOfDay();
   renderMeta();
-  updateTitleForOnboarding();
-  showScreen('title');
+  showScreen('meta');
 
   setTimeout(() => {
-    toast('손맛을 익혔습니다! 이제 진짜 바다로 나가볼까요?', 'good');
+    toast('🎉 손맛 익혔습니다! 이제 카드와 보상을 배워볼까요?', 'good');
   }, 300);
+
+  setTimeout(() => {
+    showTutorialReward();
+  }, 1200);
+}
+
+function showTutorialReward() {
+  // 튜토리얼 보상: common 카드 1장 자동 지급 + 결과 표시
+  const card = pickByRarity('common');
+  if (!card) {
+    renderMeta();
+    updateTitleForOnboarding();
+    return;
+  }
+
+  // 임시 RUN-like 상태로 addCardToJoker 호출 후 즉시 비움
+  // (meta에 영구 저장하기 위함 — 영구 퍽 슬롯이 아닌 도감/카드)
+  // 더 간단한 방식: 메타에 직접 추가
+  if (!meta.tutorialRewardGiven) {
+    if (!meta.unlocks) meta.unlocks = [];
+    if (!meta.unlocks.includes('tutorial_card_' + card.id)) {
+      meta.unlocks.push('tutorial_card_' + card.id);
+    }
+    meta.tutorialRewardGiven = true;
+    save();
+  }
+
+  // 보상 오버레이 표시
+  const overlay = qs('#tutorial-overlay');
+  if (!overlay) { renderMeta(); return; }
+  const emoji = qs('#tutorial-emoji');
+  const title = qs('#tutorial-title');
+  const desc = qs('#tutorial-desc');
+  const btn = qs('#tutorial-overlay-btn');
+  const indicator = qs('#tutorial-step-indicator');
+  if (indicator) indicator.classList.add('hidden');
+
+  if (emoji) emoji.textContent = '🎁';
+  if (title) title.textContent = '튜토리얼 보상!';
+  if (desc) desc.innerHTML = `첫 비법 카드를 받았어요:<br/><strong>${card.name}</strong><br/><br/>이제 진짜 바다로!`;
+  if (btn) btn.textContent = '🐟 출조하기!';
+
+  overlay.classList.remove('hidden');
+  if (btn) {
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    newBtn.addEventListener('click', () => {
+      overlay.classList.add('hidden');
+      renderMeta();
+      updateTitleForOnboarding();
+      // 진짜 META_HUB로 이동 (출조 버튼 보임)
+      showScreen('meta');
+    }, { once: true });
+  }
 }
 
 function enterStage(stage) {
