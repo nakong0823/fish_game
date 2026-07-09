@@ -376,44 +376,84 @@ button {
 .reward-cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 16px;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 8px;
 }
 .card {
-  background: var(--bg-1);
-  border: 2px solid var(--line);
-  border-radius: 10px;
-  padding: 14px;
+  background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
+  border: 3px solid var(--line);
+  border-radius: 14px;
+  padding: 18px 14px;
   text-align: center;
   color: var(--ink-0);
   cursor: pointer;
-  transition: transform .1s, box-shadow .15s;
+  transition: transform .15s, box-shadow .2s, border-color .2s;
   position: relative;
-  min-height: 130px;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
 }
-.card:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,.4); }
-.card.rarity-common    { border-color: var(--rarity-common); }
-.card.rarity-uncommon  { border-color: var(--rarity-uncommon); }
-.card.rarity-rare      { border-color: var(--rarity-rare); }
-.card.rarity-legendary { border-color: var(--rarity-legendary); box-shadow: 0 0 18px rgba(245, 158, 11, .35); }
-.card-name { font-weight: 700; font-size: 15px; margin-bottom: 6px; }
-.card-rarity { font-size: 11px; color: var(--ink-2); text-transform: uppercase; letter-spacing: 1px; }
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top, rgba(255,255,255,0.08), transparent 70%);
+  pointer-events: none;
+}
+.card:hover {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 0 12px 28px rgba(0,0,0,.5);
+  border-color: var(--accent);
+}
+.card.rarity-common    {
+  border-color: var(--rarity-common);
+  background: linear-gradient(180deg, #374151 0%, #1f2937 100%);
+}
+.card.rarity-uncommon  {
+  border-color: var(--rarity-uncommon);
+  background: linear-gradient(180deg, #14532d 0%, #052e16 100%);
+}
+.card.rarity-rare      {
+  border-color: var(--rarity-rare);
+  background: linear-gradient(180deg, #1e3a8a 0%, #0c1f4e 100%);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.25);
+}
+.card.rarity-legendary {
+  border-color: var(--rarity-legendary);
+  background: linear-gradient(180deg, #78350f 0%, #422006 100%);
+  box-shadow: 0 0 28px rgba(245, 158, 11, 0.45);
+  animation: legendary-pulse 2s ease-in-out infinite;
+}
+@keyframes legendary-pulse {
+  0%, 100% { box-shadow: 0 0 28px rgba(245, 158, 11, 0.45); }
+  50%      { box-shadow: 0 0 40px rgba(245, 158, 11, 0.7); }
+}
+.card-name { font-weight: 800; font-size: 17px; margin-bottom: 8px; color: var(--ink-0); }
+.card-rarity { font-size: 11px; color: var(--ink-2); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; }
 .card-desc {
-  font-size: 12px; color: var(--ink-1); margin-top: 6px; line-height: 1.4;
+  font-size: 13px; color: var(--ink-1); margin-top: 8px; line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-height: 3.6em;
+  min-height: 3.9em;
 }
 .card-lv {
-  display: inline-block; padding: 2px 8px; border-radius: 10px;
-  background: var(--bg-2); font-size: 11px; margin-top: 6px;
+  display: inline-block; padding: 3px 10px; border-radius: 12px;
+  background: rgba(15, 23, 42, 0.7); font-size: 12px; margin-top: 8px;
   color: var(--accent);
+  font-weight: 700;
 }
 .card.is-evolution {
-  background: linear-gradient(135deg, #422006, #78350f);
+  background: linear-gradient(180deg, #422006 0%, #1c0a02 100%);
   border-color: var(--accent);
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.6);
+  animation: legendary-pulse 1.5s ease-in-out infinite;
 }
 .card-preview {
   display: none;
@@ -433,6 +473,24 @@ button {
   box-shadow: 0 4px 16px rgba(0,0,0,.6);
 }
 .card:hover .card-preview { display: block; }
+
+/* 카드 등급 배지 (코너) */
+.card::after {
+  content: attr(data-rarity-icon);
+  position: absolute;
+  top: 6px; right: 8px;
+  font-size: 14px;
+  opacity: 0.6;
+}
+.card.rarity-common::after    { content: '⚪'; }
+.card.rarity-uncommon::after  { content: '🟢'; }
+.card.rarity-rare::after      { content: '🔵'; }
+.card.rarity-legendary::after { content: '🌟'; }
+
+@media (max-width: 600px) {
+  .reward-cards { grid-template-columns: 1fr; gap: 12px; }
+  .card { min-height: 180px; }
+}
 
 .reward-foot, .shop-foot, .run-map-foot, .stage-result-foot, .run-result-foot, .meta-shop-foot {
   margin-top: 18px; display: flex; gap: 8px; justify-content: center;
