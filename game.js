@@ -1891,27 +1891,51 @@ function rerollShop() {
 }
 
 function renderMetaShop() {
-  safeText('#meta-shop-renown', meta.renown);
-
+  // v2: 헤더 카드 + 그리드 카드
   const wrap = qs('#meta-shop-body');
   if (!wrap) return;
+  const old = qs('.meta-shop-header');
+  if (old) old.remove();
+
+  // 명성 큰 헤더 삽입
+  const screen = qs('#screen-meta-shop');
+  if (screen) {
+    const header = document.createElement('div');
+    header.className = 'meta-shop-header';
+    header.innerHTML = `
+      <div class="label">현재 보유</div>
+      <div class="renown-num">${meta.renown}</div>
+    `;
+    screen.insertBefore(header, wrap);
+  }
 
   wrap.innerHTML = '';
 
   for (const item of META_SHOP) {
     const st = metaShopState(item);
     const div = document.createElement('div');
+    div.className = 'meta-shop-item' + (st.owned ? ' is-owned' : '');
 
-    div.className = 'shop-item ' + (st.owned ? 'is-owned' : 'is-buyable');
+    const iconMap = {
+      'unlock_stage_pool_a':     '🌊',
+      'unlock_card_legendary':   '🃏',
+      'perk_start_bait':         '🪱',
+      'perk_start_card':         '🎴',
+      'unlock_encyclopedia_bonus':'📚',
+      'perk_start_reroll':       '🔄',
+    };
+
     div.innerHTML = `
-      <div class="shop-item-name">${item.name}</div>
-      <div class="shop-item-cost">${st.owned ? '보유 중' : `🐟 ${item.cost}`}</div>
-      <div class="shop-item-desc">${item.desc}</div>
-      <div class="shop-item-effect">→ 다음 출조부터 자동 적용</div>
+      <div class="meta-shop-item-icon">${iconMap[item.id] || '⭐'}</div>
+      <div class="meta-shop-item-name">${item.name}</div>
+      <div class="meta-shop-item-cost ${st.owned ? 'is-owned' : ''}">${st.owned ? '✓ 보유 중' : '🐟 ' + item.cost + ' 명성'}</div>
+      <div class="meta-shop-item-desc">${item.desc}</div>
+      <button class="meta-shop-item-btn ${st.owned ? 'is-owned' : ''}" ${st.owned ? 'disabled' : ''}>${st.owned ? '보유 중' : '구매하기'}</button>
     `;
 
     if (!st.owned) {
-      div.addEventListener('click', () => buyMetaShop(item));
+      const btn = div.querySelector('.meta-shop-item-btn');
+      if (btn) btn.addEventListener('click', (e) => { e.stopPropagation(); buyMetaShop(item); });
     }
 
     wrap.appendChild(div);
@@ -2379,24 +2403,54 @@ function registerEncyclopedia(fishId, sizeRoll) {
 function renderCodex() {
   const wrap = qs('#codex-grid');
   if (!wrap) return;
+  const old = qs('.codex-header');
+  if (old) old.remove();
 
   wrap.innerHTML = '';
 
   const caught = Object.keys(meta.encyclopedia).length;
   safeText('#codex-count', `${caught} / ${FISH.length}`);
 
+  // v2: 진행 헤더 (큰 숫자 + 진행 막대)
+  const screen = qs('#screen-codex');
+  if (screen) {
+    const header = document.createElement('div');
+    header.className = 'codex-header';
+    const pct = Math.round((caught / FISH.length) * 100);
+    header.innerHTML = `
+      <div class="label">도감 수집도</div>
+      <div class="progress-num"><strong>${caught}</strong> / ${FISH.length}</div>
+      <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+    `;
+    screen.insertBefore(header, wrap);
+  }
+
+  const emojiMap = (typeof FISH_EMOJI !== 'undefined') ? FISH_EMOJI : {};
+
   for (const f of FISH) {
     const e = meta.encyclopedia[f.id];
     const div = document.createElement('div');
-    div.className = 'codex-cell ' + (e ? '' : 'is-locked');
+    div.className = 'codex-cell' + (e ? '' : ' is-locked');
 
-    div.innerHTML = e
-      ? `<div class="codex-cell-photo">${fishImageHTML(f.id)}</div>
-         <div class="codex-cell-name">${f.name}</div>
-         <div class="codex-cell-meta">최대 ${e.maxSize}cm · ${e.count}회</div>`
-      : `<div class="codex-cell-photo codex-cell-photo-locked">❔</div>
-         <div class="codex-cell-name">???</div>
-         <div class="codex-cell-meta">미등록</div>`;
+    const stageLabel = f.stage === 0 ? '희귀' : `스테이지 ${f.stage}`;
+
+    if (e) {
+      const isNew = e.count === 1;
+      const photo = fishImageHTML(f.id);
+      div.innerHTML = `
+        <div class="codex-cell-emoji">${photo.includes('onerror') ? (emojiMap[f.id] || '🐟') : ''}</div>
+        <div class="codex-cell-stage">${stageLabel}</div>
+        <div class="codex-cell-name">${f.name}</div>
+        <div class="codex-cell-meta">최대 <span class="${isNew ? 'codex-cell-meta-new' : ''}">${e.maxSize}cm</span> · ${e.count}회${isNew ? ' ✨신규' : ''}</div>
+      `;
+    } else {
+      const lockedEmoji = (typeof FISH_EMOJI !== 'undefined' && FISH_EMOJI[f.id]) || '❔';
+      div.innerHTML = `
+        <div class="codex-cell-emoji is-locked">${lockedEmoji}</div>
+        <div class="codex-cell-name is-locked">???</div>
+        <div class="codex-cell-meta">${stageLabel} · 미등록</div>
+      `;
+    }
 
     wrap.appendChild(div);
   }
