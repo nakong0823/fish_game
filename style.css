@@ -1054,6 +1054,134 @@ button {
 }
 
 /* v2: 어구점 (RUN 내 상점) — VS 스타일 큰 카드 */
+.shop-bait-header {
+  max-width: 720px;
+  margin: 0 auto 16px;
+  padding: 14px 18px;
+  background: linear-gradient(180deg, #422006 0%, #1c0a02 100%);
+  border: 2px solid var(--accent);
+  border-radius: 14px;
+  text-align: center;
+}
+.shop-bait-header .label {
+  font-size: 11px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.shop-bait-header .bait-num {
+  font-size: 36px;
+  color: var(--accent);
+  font-weight: 900;
+  text-shadow: 0 0 12px rgba(245, 158, 11, .4);
+  margin-bottom: 4px;
+}
+.shop-bait-header .bait-num .bait-icon-img {
+  width: 32px; height: 32px;
+  vertical-align: middle;
+  filter: drop-shadow(0 0 8px rgba(245, 158, 11, .5));
+}
+.shop-bait-header .hint {
+  font-size: 12px;
+  color: #fde68a;
+  font-weight: 500;
+}
+.shop-status {
+  display: inline-block;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  margin-top: 4px;
+}
+.shop-status.is-ok {
+  background: rgba(34, 197, 94, .2);
+  color: #86efac;
+  border: 1px solid var(--ok);
+}
+.shop-status.is-bad {
+  background: rgba(239, 68, 68, .2);
+  color: #fca5a5;
+  border: 1px solid var(--bad);
+}
+.shop-card-v2 {
+  background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  padding: 16px 14px;
+  display: flex;
+  gap: 12px;
+  text-align: left;
+  position: relative;
+  transition: transform .15s, border-color .2s, box-shadow .2s;
+  overflow: hidden;
+}
+.shop-card-v2::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top, rgba(255,255,255,0.05), transparent 70%);
+  pointer-events: none;
+}
+.shop-card-v2.rarity-common    { border-color: var(--rarity-common); background: linear-gradient(180deg, #374151 0%, #1f2937 100%); }
+.shop-card-v2.rarity-uncommon  { border-color: var(--rarity-uncommon); background: linear-gradient(180deg, #14532d 0%, #052e16 100%); }
+.shop-card-v2.rarity-rare      { border-color: var(--rarity-rare); background: linear-gradient(180deg, #1e3a8a 0%, #0c1f4e 100%); box-shadow: 0 0 20px rgba(59, 130, 246, .25); }
+.shop-card-v2.rarity-legendary { border-color: var(--rarity-legendary); background: linear-gradient(180deg, #78350f 0%, #422006 100%); box-shadow: 0 0 28px rgba(245, 158, 11, .45); animation: legendary-pulse 2s ease-in-out infinite; }
+.shop-card-v2:hover:not(.is-locked) {
+  transform: translateY(-4px) scale(1.02);
+  border-color: var(--accent);
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  cursor: pointer;
+}
+.shop-card-v2.is-locked {
+  opacity: 0.5;
+  filter: grayscale(0.6);
+  cursor: not-allowed;
+}
+.shop-bait-card {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, #422006 0%, #1c0a02 100%);
+}
+.shop-card-v2 .card-icon {
+  font-size: 40px;
+  line-height: 1;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.4));
+}
+.shop-card-v2 .card-body { flex: 1 1 0; min-width: 0; }
+.shop-card-v2 .card-rarity {
+  font-size: 11px;
+  color: var(--ink-2);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+}
+.shop-card-v2 .card-name {
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--ink-0);
+  margin: 2px 0 4px;
+}
+.shop-card-v2 .card-desc {
+  font-size: 12px;
+  color: var(--ink-1);
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+.shop-card-v2 .card-preview {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 700;
+  padding: 3px 7px;
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: 6px;
+  margin: 2px 4px 2px 0;
+  word-break: keep-all;
+}
+
 .shop-body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -1554,7 +1682,11 @@ button {
 .screen-stage-result {
   background: linear-gradient(180deg, #0f172a 0%, #082f49 50%, #0c4a6e 100%);
   min-height: 100vh;
-  padding: 24px 16px;
+  max-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px 16px 40px;
+  -webkit-overflow-scrolling: touch;
 }
 .stage-result-hero {
   text-align: center;

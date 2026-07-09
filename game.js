@@ -2039,67 +2039,124 @@ function renderShop() {
     rerollBtn.disabled = run.rerollTokens < cost;
   }
 
+  // v2: 큰 "내 미끼" 헤더 추가
+  const screen = qs('#screen-shop');
+  const oldHeader = qs('.shop-bait-header');
+  if (oldHeader) oldHeader.remove();
+  if (screen) {
+    const wrap = qs('#shop-body');
+    if (wrap) {
+      const header = document.createElement('div');
+      header.className = 'shop-bait-header';
+      header.innerHTML = `
+        <div class="label">내 미끼 (현재 자원)</div>
+        <div class="bait-num"><img src="images/bait-icon.png" class="bait-icon-img" alt="미끼"> ${run.bait}</div>
+        <div class="hint">${run.bait >= 3 ? '🟢 미끼 거래 가능 (+1)' : run.bait >= 2 ? '🟡 카드 1개 구매 가능' : '🔴 미끼 부족 — 거래/구매 불가'}</div>
+      `;
+      screen.insertBefore(header, wrap);
+    }
+  }
+
   const wrap = qs('#shop-body');
   if (!wrap) return;
 
   wrap.innerHTML = '';
 
+  // 미끼 거래 카드 (3 → +4)
   const bait = document.createElement('div');
-  bait.className = 'shop-item is-buyable';
+  const canAffordBait = run.bait >= 3;
+  bait.className = 'shop-card-v2 shop-bait-card' + (canAffordBait ? ' is-buyable' : ' is-locked');
   bait.innerHTML = `
-    <div class="shop-item-name">미끼 +4</div>
-    <div class="shop-item-cost"><img src="images/bait-icon.png" class="bait-icon-img" alt="미끼"> 3 → +4</div>
+    <div class="card-icon">🪱</div>
+    <div class="card-body">
+      <div class="card-rarity">거래</div>
+      <div class="card-name">미끼 4개로 교환</div>
+      <div class="card-desc">지금 미끼 3개로 4개를 받아요<br/>(+1 보너스, 나중에 쓸 수 있음)</div>
+      <div class="card-preview">🪱 3 → +4</div>
+      <div class="card-preview shop-status ${canAffordBait ? 'is-ok' : 'is-bad'}">${canAffordBait ? '✅ 구매 가능' : `🔴 미끼 ${3 - run.bait}개 부족`}</div>
+    </div>
   `;
-  bait.addEventListener('click', () => {
-    if (run.bait >= 3) {
+  if (canAffordBait) {
+    bait.addEventListener('click', () => {
       run.bait -= 3;
       run.bait = Math.min(99, run.bait + 4);
       toast('미끼 거래 완료 (+1)', 'good');
+      try { window.playSound('reroll'); } catch (e) {}
       renderShop();
-    } else {
-      toast('미끼 부족', 'bad');
-    }
-  });
-
+    });
+  }
   wrap.appendChild(bait);
 
+  // 카드 3장
   for (const c of shopCards) {
     const div = document.createElement('div');
-    div.className = 'card rarity-' + c.rarity;
+    div.className = 'shop-card-v2 rarity-' + c.rarity;
     if (c.isEvolved) div.classList.add('is-evolution', 'is-evolve-glow');
 
     const owned = run.joker.find(j => j.id === c.id);
+    const lv = owned ? owned.level : 0;
+    const canAfford = run.bait >= 2;
+
+    // 효과 미리보기
+    let previewText = c.desc;
+    if (c.num?.mult) previewText += ` ×${c.num.mult.base}`;
+    if (c.num?.add) previewText += ` +${c.num.add.base}`;
+
+    // 액션 텍스트
+    let actionText;
+    if (c.isEvolved) {
+      actionText = '🌟 진화 카드 등장!';
+    } else if (owned) {
+      if (owned.level < 3) {
+        actionText = `⬆️ 레벨업 (Lv.${owned.level} → Lv.${owned.level + 1})`;
+      } else {
+        actionText = '⚠️ 최대 레벨 (변화 없음)';
+      }
+    } else {
+      actionText = '🆕 새 카드 추가';
+    }
+
+    const iconMap = {
+      common: '🃏', uncommon: '🎴', rare: '💎', legendary: '👑',
+    };
+
+    if (!canAfford) div.classList.add('is-locked');
 
     div.innerHTML = `
-      <div class="card-rarity">${c.rarity}${owned ? ` · Lv.${owned.level}` : ''}${c.isEvolved ? ' · 진화' : ''}</div>
-      <div class="card-name">${c.name}</div>
-      <div class="card-desc">${c.desc}</div>
-      <div class="card-lv"><img src="images/bait-icon.png" class="bait-icon-img" alt="미끼"> 2로 구매</div>
+      <div class="card-icon">${c.isEvolved ? '🌟' : (iconMap[c.rarity] || '🃏')}</div>
+      <div class="card-body">
+        <div class="card-rarity">${c.rarity.toUpperCase()}${owned ? ` · Lv.${lv}` : ''}${c.isEvolved ? ' · 진화' : ''}</div>
+        <div class="card-name">${c.name}</div>
+        <div class="card-desc">${c.desc}</div>
+        <div class="card-preview">${previewText}</div>
+        <div class="card-preview" style="background: rgba(99, 102, 241, .25); color: #c7d2fe; margin-top: 6px;">${actionText}</div>
+        <div class="card-preview shop-status ${canAfford ? 'is-ok' : 'is-bad'}">${canAfford ? '🪱 2로 구매 가능' : `🔴 미끼 ${2 - run.bait}개 부족`}</div>
+      </div>
     `;
 
-    div.addEventListener('click', () => {
-      if (run.bait < 2) {
-        toast('미끼 부족', 'bad');
-        return;
-      }
+    if (canAfford) {
+      div.addEventListener('click', () => {
+        if (c.isEvolved) {
+          run.bait -= 2;
+          applyEvolutionCard(c.id);
+          renderShop();
+          return;
+        }
 
-      if (c.isEvolved) {
+        const beforeBait = run.bait;
         run.bait -= 2;
-        applyEvolutionCard(c.id);
-        renderShop();
-        return;
-      }
 
-      const beforeBait = run.bait;
-      run.bait -= 2;
+        const added = addCardToJoker(c.id, false, (accepted) => {
+          if (!accepted) run.bait = beforeBait;
+          renderShop();
+        });
 
-      const added = addCardToJoker(c.id, false, (accepted) => {
-        if (!accepted) run.bait = beforeBait;
-        renderShop();
+        if (added) renderShop();
       });
-
-      if (added) renderShop();
-    });
+    } else {
+      // 부족 시 클릭 불가
+      div.style.cursor = 'not-allowed';
+    }
 
     wrap.appendChild(div);
   }
