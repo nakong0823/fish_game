@@ -2318,28 +2318,65 @@ function finishRun(win) {
     ? '다음 출조에서는 더 큰 대물을 노려보세요! 🎣'
     : `다음엔 스테이지 ${run.stage} 목표(${STAGE_INFO[run.stage].target}점)를 넘어봐요!`;
 
+  const bestFish = bestFishOfRun();
+
   safeHTML('#run-result-body', `
-    <div class="stat-row ${isBest ? 'is-good is-best-flash' : ''}">
-      <span class="stat-label">총 점수</span>
-      <span class="stat-value">${run.totalScore}${isBest ? ' 🆕' : ''}</span>
+    <h1 class="run-result-title">${win ? '🎉 출조 성공!' : '출조 종료'}</h1>
+    <p class="run-result-subtitle">${nextTargetTeaser}</p>
+
+    <div class="run-result-stats">
+      <div class="run-result-stat ${isBest ? 'is-best-flash' : ''}">
+        <div class="run-result-stat-icon">🎯</div>
+        <div class="run-result-stat-num">${run.totalScore}${isBest ? ' 🆕' : ''}</div>
+        <div class="run-result-stat-label">총 점수</div>
+      </div>
+      <div class="run-result-stat">
+        <div class="run-result-stat-icon">🏁</div>
+        <div class="run-result-stat-num">${cleared} / ${CONFIG.RUN.stages}</div>
+        <div class="run-result-stat-label">클리어</div>
+      </div>
+      <div class="run-result-stat">
+        <div class="run-result-stat-icon">🐟</div>
+        <div class="run-result-stat-num">${run.runStats.caughtFish.length}</div>
+        <div class="run-result-stat-label">잡은 마리</div>
+      </div>
     </div>
-    <div class="stat-row">
-      <span class="stat-label">클리어 스테이지</span>
-      <span class="stat-value">${cleared} / ${CONFIG.RUN.stages}</span>
+
+    <div class="run-result-stat" style="margin: 0 auto 20px; max-width: 240px; padding: 14px 12px;">
+      <div class="run-result-stat-icon">🐟</div>
+      <div class="run-result-stat-num" style="color: var(--accent);">+${renownDisplayed}</div>
+      <div class="run-result-stat-label">획득 명성</div>
     </div>
-    <div class="stat-row">
-      <span class="stat-label">잡은 물고기</span>
-      <span class="stat-value">${run.runStats.caughtFish.length}마리</span>
+
+    ${run.joker.length > 0 ? `
+      <div class="run-result-section">
+        <h3 class="run-result-section-title">이번 판 빌드 (${run.joker.length}장)</h3>
+        <div class="run-result-build">
+          ${run.joker.map(j => {
+            const card = getCardById(j.id);
+            const cls = card?.rarity === 'legendary' ? 'is-legendary' : (card?.rarity === 'rare' ? 'is-rare' : '');
+            return `<div class="run-result-card-chip ${cls}">${card?.name || j.id} Lv.${j.level}</div>`;
+          }).join('')}
+        </div>
+      </div>
+    ` : ''}
+
+    ${run.runStats.caughtFish.length > 0 ? `
+      <div class="run-result-section">
+        <h3 class="run-result-section-title">어획 (${run.runStats.caughtFish.length}마리 · 최고: ${bestFish})</h3>
+        <div class="run-result-caught">
+          ${run.runStats.caughtFish.slice(0, 12).map(f => {
+            const emoji = (typeof FISH_EMOJI !== 'undefined' && FISH_EMOJI[f.id]) || '🐟';
+            return `<div class="run-result-fish-chip">${emoji} ${f.name} ${f.size}cm</div>`;
+          }).join('')}
+        </div>
+      </div>
+    ` : ''}
+
+    <div class="run-result-cta-group" style="margin-top: 24px;">
+      <button class="run-result-cta" id="run-result-play-again" data-action="play-again">🎣 한 판 더!</button>
+      <button class="run-result-cta secondary" data-action="goto-meta">🏘️ 마을로 돌아가기</button>
     </div>
-    <div class="stat-row is-good">
-      <span class="stat-label">획득 명성</span>
-      <span class="stat-value">+${renownDisplayed}</span>
-    </div>
-    <div class="stat-row">
-      <span class="stat-label">최고 어종</span>
-      <span class="stat-value">${bestFishOfRun()}</span>
-    </div>
-    <div class="run-result-teaser">${nextTargetTeaser}</div>
   `);
 
   const adBtn = qs('button[data-action="ad-revive"]');

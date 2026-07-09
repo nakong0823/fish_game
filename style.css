@@ -680,38 +680,241 @@ button {
   margin-top: 18px; display: flex; gap: 8px; justify-content: center;
 }
 
-/* ---------- SHOP / META SHOP ---------- */
-.shop-body, .meta-shop-body {
+/* v2: 어구점 (RUN 내 상점) — VS 스타일 큰 카드 */
+.shop-body {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 4px;
 }
 .shop-item {
-  background: var(--bg-1);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 14px;
+  background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  padding: 18px 14px;
   text-align: center;
   position: relative;
+  transition: transform .15s, border-color .2s, box-shadow .2s;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
 }
-.shop-item.is-locked { opacity: 0.5; }
+.shop-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top, rgba(255,255,255,0.05), transparent 70%);
+  pointer-events: none;
+}
+.shop-item.is-locked { opacity: 0.4; filter: grayscale(0.8); }
 .shop-item.is-buyable { cursor: pointer; }
-.shop-item.is-buyable:hover { background: var(--bg-2); }
-.shop-item-name { font-weight: 700; }
-.shop-item-cost { color: var(--accent); margin-top: 4px; font-size: 14px; }
-.shop-item-desc { color: var(--ink-2); font-size: 12px; margin-top: 6px; }
+.shop-item.is-buyable:hover {
+  transform: translateY(-4px) scale(1.02);
+  border-color: var(--accent);
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+}
+.shop-item-icon {
+  font-size: 42px;
+  line-height: 1;
+  margin-bottom: 4px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.4));
+}
+.shop-item-name { font-weight: 800; font-size: 15px; color: var(--ink-0); }
+.shop-item-cost {
+  color: var(--accent);
+  margin-top: 2px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.shop-item-desc {
+  color: var(--ink-1);
+  font-size: 12px;
+  margin-top: 4px;
+  line-height: 1.4;
+}
 .shop-item-effect {
   font-size: 11px;
-  color: var(--ink-1);
+  color: var(--ink-2);
   margin-top: 4px;
   font-style: italic;
 }
 .shop-item.is-owned {
   border-color: var(--ok);
-  background: rgba(34, 197, 94, .08);
+  background: linear-gradient(180deg, #14532d 0%, #052e16 100%);
 }
 .shop-item.is-owned::after {
   content: '✓ 보유';
+  position: absolute;
+  top: 6px; right: 8px;
+  color: var(--ok);
+  font-size: 11px;
+  font-weight: 800;
+  background: rgba(15, 23, 42, 0.7);
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+.shop-item-btn {
+  margin-top: auto;
+  padding: 8px 12px;
+  background: var(--accent);
+  color: var(--bg-0);
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.shop-item-btn:hover { transform: scale(1.05); }
+.shop-item-btn:active { transform: scale(0.97); }
+.shop-item-btn:disabled,
+.shop-item.is-locked .shop-item-btn {
+  background: var(--bg-2);
+  color: var(--ink-2);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* v2: RUN 결과 (출조 종료) — StS Run Recap 패턴 */
+.run-result-body {
+  max-width: 720px;
+  margin: 0 auto 24px;
+  padding: 24px 20px;
+  background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  text-align: center;
+}
+.run-result-title {
+  font-size: 32px;
+  font-weight: 800;
+  background: linear-gradient(180deg, #fde68a, #f59e0b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0 0 8px;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,.4));
+}
+.run-result-subtitle {
+  color: var(--ink-1);
+  font-size: 15px;
+  margin: 0 0 20px;
+}
+.run-result-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  max-width: 480px;
+  margin: 0 auto 20px;
+}
+.run-result-stat {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 8px;
+}
+.run-result-stat-icon { font-size: 24px; margin-bottom: 4px; }
+.run-result-stat-num {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+}
+.run-result-stat-label {
+  font-size: 11px;
+  color: var(--ink-2);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+.run-result-section {
+  margin: 20px auto;
+  max-width: 560px;
+  text-align: left;
+}
+.run-result-section-title {
+  font-size: 14px;
+  color: var(--ink-2);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  text-align: center;
+}
+.run-result-build {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.run-result-card-chip {
+  background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--ink-0);
+  display: flex; align-items: center; gap: 4px;
+}
+.run-result-card-chip.is-rare { border-color: var(--rarity-rare); }
+.run-result-card-chip.is-legendary {
+  border-color: var(--rarity-legendary);
+  background: linear-gradient(180deg, #422006 0%, #1c0a02 100%);
+  color: var(--accent);
+  box-shadow: 0 0 8px rgba(245, 158, 11, .4);
+}
+.run-result-caught {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+.run-result-fish-chip {
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--ink-1);
+  display: flex; align-items: center; gap: 4px;
+}
+.run-result-cta-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 360px;
+  margin: 0 auto;
+  align-items: center;
+}
+.run-result-cta {
+  width: 100%;
+  padding: 16px 24px;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--bg-0);
+  background: linear-gradient(180deg, #fde68a, #f59e0b);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(245, 158, 11, .45);
+  transition: transform 0.15s;
+}
+.run-result-cta:hover { transform: translateY(-2px); }
+.run-result-cta.secondary {
+  background: var(--bg-2);
+  color: var(--ink-0);
+  box-shadow: 0 4px 12px rgba(0,0,0,.3);
+}
+.run-result-cta.secondary:hover { background: var(--bg-1); }
+@media (max-width: 600px) {
+  .run-result-stats { grid-template-columns: 1fr; }
+  .run-result-title { font-size: 26px; }
+}
   position: absolute;
   top: 6px; right: 8px;
   color: var(--ok);
