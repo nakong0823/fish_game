@@ -306,14 +306,38 @@ button {
 .reel-area {
   display: flex; align-items: center; gap: 24px;
   flex-wrap: wrap; justify-content: center;
+  padding: 8px 0;
 }
+/* v2: 텐션 게이지 시각 강화 (물고기 + 낚시줄) */
 .reel-tension {
   position: relative;
-  width: 40px; height: 280px;
-  background: var(--bg-2);
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  overflow: hidden;
+  width: 64px; height: 320px;
+  background: linear-gradient(180deg, #0c4a6e 0%, #082f49 100%);
+  border: 2px solid var(--accent);
+  border-radius: 32px;
+  overflow: visible;
+  box-shadow: 0 4px 16px rgba(0,0,0,.5), inset 0 0 12px rgba(0,0,0,.4);
+}
+.reel-tension::before {
+  content: '🎣';
+  position: absolute;
+  left: 50%; top: -28px;
+  transform: translateX(-50%);
+  font-size: 28px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.5));
+}
+.reel-tension::after {
+  content: '🐟';
+  position: absolute;
+  left: 50%; bottom: -36px;
+  transform: translateX(-50%);
+  font-size: 32px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.5));
+  animation: fish-bob 1.4s ease-in-out infinite;
+}
+@keyframes fish-bob {
+  0%, 100% { transform: translateX(-50%) translateY(0) rotate(0deg); }
+  50%      { transform: translateX(-50%) translateY(-6px) rotate(-8deg); }
 }
 .reel-tension-fill {
   position: absolute; left: 0; right: 0; bottom: 0;
