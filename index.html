@@ -13,9 +13,10 @@
       <div class="title-wrap">
         <h1 class="title-h1">낚시 비법</h1>
         <p class="title-sub">Angler's Secret · 로그라이크 낚시</p>
-        <button class="btn btn-primary btn-lg" data-action="goto-meta">출조하기</button>
+        <button class="btn btn-primary btn-lg" id="title-start-btn" data-action="goto-meta">출조하기</button>
         <button class="btn btn-ghost" data-action="goto-codex">도감</button>
         <p class="title-foot" id="title-renown">명성 0</p>
+        <button class="btn-skip-tutorial hidden" id="skip-tutorial-btn" data-action="skip-tutorial">튜토리얼 건너뛰기 (숙련자용)</button>
       </div>
     </section>
 
@@ -60,7 +61,7 @@
         <div class="run-stats">
           <span>🎯 <strong id="run-map-target">30</strong></span>
           <span>점수 <strong id="run-map-score">0</strong></span>
-          <span>🪱 <strong id="run-map-bait">12</strong></span>
+          <span><img src="images/bait-icon.png" class="bait-icon-img" alt="미끼"> <strong id="run-map-bait">12</strong></span>
           <span>🔄 <strong id="run-map-reroll">2</strong></span>
         </div>
       </header>
@@ -75,28 +76,34 @@
       <header class="run-header">
         <h2 id="fishing-stage-title">낚시 중</h2>
         <div class="run-stats">
-          <span>🎯 <strong id="fishing-target">30</strong></span>
-          <span>점수 <strong id="fishing-score">0</strong></span>
-          <span>🪱 <strong id="fishing-bait">12</strong></span>
+          <span class="stat-target">🎯 <strong id="fishing-target">30</strong></span>
+          <span class="stat-score">점수 <strong id="fishing-score">0</strong></span>
+          <span class="stat-bait"><img src="images/bait-icon.png" class="bait-icon-img" alt="미끼"> <strong id="fishing-bait">12</strong></span>
           <span id="fishing-cast-info">1 / 2 손</span>
         </div>
       </header>
+      <div id="tutorial-hint" class="tutorial-hint hidden"></div>
       <div class="fishing-wrap">
         <div id="phase-cast" class="phase-pane">
-          <div class="cast-net">
-            <div class="cast-net-water"></div>
-            <div class="cast-net-circle"></div>
+          <div class="cast-scene">
+            <span class="cast-rod-emoji">🎣</span>
+            <div class="cast-gauge">
+              <div class="cast-gauge-fill" id="cast-fill"></div>
+              <div class="cast-gauge-zone" id="cast-zone"></div>
+              <div class="cast-gauge-marker" id="cast-marker"><span class="cast-lure-emoji">🪝</span></div>
+            </div>
           </div>
-          <div class="cast-gauge">
-            <div class="cast-gauge-fill" id="cast-fill"></div>
-            <div class="cast-gauge-zone" id="cast-zone"></div>
-            <div class="cast-gauge-marker" id="cast-marker"></div>
-          </div>
-          <p class="phase-hint">스페이스바(또는 화면 탭)로 멈추세요</p>
+          <p class="phase-hint">🎯 마커가 <strong>초록 구간</strong>에 왔을 때 탭/스페이스바로 멈춰서 던져넣으세요!</p>
         </div>
         <div id="phase-bite" class="phase-pane hidden">
-          <div class="bite-circle"><div class="bite-pulse"></div></div>
-          <p class="phase-hint">입질! 스페이스바(또는 탭) 당겨!</p>
+          <div class="bite-visual">
+            <svg class="bite-ring" viewBox="0 0 100 100">
+              <circle class="bite-ring-track" cx="50" cy="50" r="44"></circle>
+              <circle class="bite-ring-progress" id="bite-ring-progress" cx="50" cy="50" r="44"></circle>
+            </svg>
+            <div class="bite-circle"><span class="bite-icon" id="bite-icon">🐟</span></div>
+          </div>
+          <p class="phase-hint" id="bite-hint-text">…곧 입질이 옵니다. 기다려주세요</p>
         </div>
         <div id="phase-reel" class="phase-pane hidden">
           <div class="reel-area">
@@ -140,7 +147,7 @@
         <div class="run-stats">
           <span>🎯 <strong id="shop-target">30</strong></span>
           <span>점수 <strong id="shop-score">0</strong></span>
-          <span>🪱 <strong id="shop-bait">12</strong></span>
+          <span><img src="images/bait-icon.png" class="bait-icon-img" alt="미끼"> <strong id="shop-bait">12</strong></span>
         </div>
       </header>
       <div class="shop-body" id="shop-body"></div>
@@ -190,6 +197,7 @@
       <header class="run-header"><h2 id="run-result-title">출조 종료</h2></header>
       <div class="run-result-body" id="run-result-body"></div>
       <div class="run-result-foot">
+        <button class="btn btn-primary btn-lg" id="run-result-play-again" data-action="play-again">🎣 한 판 더!</button>
         <button class="btn btn-primary" data-action="ad-revive">📺 광고 보고 부활 (미끼+4)</button>
         <button class="btn btn-ghost" data-action="goto-meta">마을로</button>
       </div>

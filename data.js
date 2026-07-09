@@ -3,24 +3,29 @@
 
 // ---------- 6-1. CONFIG ----------
 const CONFIG = {
-  RUN: { stages: 3, startBait: 12, jokerSlots: 5 },
+  RUN: { stages: 3, startBait: 16, jokerSlots: 5 }, // v0.7: 12 -> 16 (미끼 경제 보강)
   STAGE_TARGET: [30, 80, 180],
   PATH: { columns: 4, nodesPerColumn: 2, castsPerNode: [2, 3] },
   BITE_DELAY_MS: [500, 2000],
   BITE_WINDOW_MS: 600,
   CAST_GAUGE_SPEED: 1.0,
+  REST_BAIT_RECOVER: 6, // v0.7: 4 -> 6
   REEL: {
     tensionMax: 100,
-    safeZoneByStage: { 1: [25, 85], 2: [32, 78], 3: [38, 72], 4: [42, 68] },
+    safeZoneByStage: { 1: [15, 90], 2: [32, 78], 3: [38, 72], 4: [42, 68] }, // v0.7: stage1 [25,85] -> [15,90]
     timeLimitMs: 12000,
     reelUpRate: 22, reelDownRate: 30, progressRate: 18,
     slackPenalty: 10, resistTensionMult: 2.0, relaxProgressMult: 2.0,
+    resistTensionMultStage1: 1.6, // v0.7: 스테이지 1 한정 2.0 -> 1.6
+    resistPhaseMsStage1: [900, 1400], // v0.7: 스테이지 1 한정 저항 지속시간 단축 (기본 700~1500)
     tierTensionMult: { 1: 1.0, 2: 1.15, 3: 1.3, 4: 1.5 },
   },
   META_RENOWN_PER_10PTS: 1,
   META_RENOWN_PER_STAGE: 5,
   CARD_RARITY_WEIGHT: { common: 55, uncommon: 30, rare: 13, legendary: 2 },
   NODE_WEIGHT: { fishing: 50, hotspot: 20, shop: 15, rest: 15 },
+  NODE_WEIGHT_STAGE1: { fishing: 50, hotspot: 15, shop: 13, rest: 22 }, // v0.7: 스테이지 1 한정 미끼 생존율 강화
+  BEGINNER_RUNS_THRESHOLD: 3, // v0.7: 처음 N판 동안 초보 배려 적용 (safety_net 기본지급 등)
   REROLL: {
     startTokens: 2, clearBonus: 1,
     overkillMult: 1.5, overkillBonus: 1,
@@ -103,7 +108,7 @@ const CARDS_UTIL = [
     desc: "RUN당 1회 라인 파손 무효(성공 처리)", num: { base: 1, perLvl: 0 } },
   // 추가: 미끼 미소모 조건 (시그니처 빌드용)
   { id: "bait_master",  name: "미끼 절약술",   rarity: "uncommon",  type: "util",
-    desc: "10% 확률로 미끼 소모 없음", num: { base: 0.1, perLvl: 0.1 } },
+    desc: "캐스팅 시 확률로 미끼 소모 없음", num: { base: 0.1, perLvl: 0.1 } }, // GAME_DESIGN.md v0.7 §5-2 정식 19번째 카드
 ];
 
 const ALL_CARDS = [...CARDS_SCORE, ...CARDS_UTIL];
