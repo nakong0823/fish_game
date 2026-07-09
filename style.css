@@ -379,6 +379,21 @@ button {
   animation: cast-zone-glow 1s ease-in-out infinite;
   border-radius: 0;
 }
+/* v2: PERFECT 구간 (좁은 5% — 콤보 트리거) */
+.cast-gauge-perfect-zone {
+  position: absolute; top: 0; bottom: 0;
+  background: rgba(250, 204, 21, .5);
+  border-left: 2px solid #facc15;
+  border-right: 2px solid #facc15;
+  left: 47.5%; width: 5%;
+  box-shadow: 0 0 16px rgba(250, 204, 21, .8), inset 0 0 8px rgba(250, 204, 21, .6);
+  animation: perfect-zone-pulse 0.6s ease-in-out infinite;
+  z-index: 2;
+}
+@keyframes perfect-zone-pulse {
+  0%, 100% { opacity: 0.6; transform: scaleY(1); }
+  50%      { opacity: 1; transform: scaleY(1.05); }
+}
 @keyframes cast-zone-glow {
   0%, 100% { box-shadow: 0 0 12px rgba(34, 197, 94, .5) inset, 0 0 8px rgba(34, 197, 94, .4); }
   50%      { box-shadow: 0 0 20px rgba(34, 197, 94, .9) inset, 0 0 16px rgba(34, 197, 94, .7); }
@@ -580,6 +595,55 @@ button {
   flex-wrap: wrap;
   justify-content: center;
 }
+/* v2: 낚시 중 콤보 카운터 (PERFECT 캐스팅 콤보) */
+.fishing-combo {
+  position: fixed;
+  top: 80px; right: 20px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #422006 0%, #1c0a02 100%);
+  border: 2px solid var(--accent);
+  border-radius: 14px;
+  box-shadow: 0 6px 20px rgba(245, 158, 11, .5);
+  animation: combo-pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.fishing-combo.hidden { display: none; }
+.fishing-combo .combo-emoji {
+  font-size: 32px;
+  filter: drop-shadow(0 0 8px rgba(245, 158, 11, .6));
+  animation: combo-flame 0.6s ease-in-out infinite;
+}
+@keyframes combo-flame {
+  0%, 100% { transform: scale(1) rotate(-3deg); }
+  50%      { transform: scale(1.15) rotate(3deg); }
+}
+.fishing-combo .combo-num {
+  font-size: 32px;
+  font-weight: 900;
+  color: var(--accent);
+  line-height: 1;
+  text-shadow: 0 0 12px rgba(245, 158, 11, .7);
+}
+.fishing-combo .combo-label {
+  font-size: 11px;
+  color: #fde68a;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 800;
+}
+@keyframes combo-pop-in {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+@media (max-width: 600px) {
+  .fishing-combo { top: 70px; right: 10px; padding: 6px 10px; }
+  .fishing-combo .combo-emoji { font-size: 24px; }
+  .fishing-combo .combo-num { font-size: 24px; }
+}
+
 /* v2: 낚시 중 빌드 바 (가로 한 줄, 작은 슬롯) */
 .fishing-build-bar {
   display: flex;

@@ -104,6 +104,13 @@
         <div class="build-slots fishing-build-slots" id="fishing-build-slots"></div>
       </div>
 
+      <!-- v2: 콤보 카운터 (PERFECT 캐스팅 콤보) -->
+      <div class="fishing-combo hidden" id="fishing-combo">
+        <span class="combo-emoji">🔥</span>
+        <span class="combo-num" id="combo-num">0</span>
+        <span class="combo-label">COMBO</span>
+      </div>
+
       <div id="tutorial-hint" class="tutorial-hint hidden"></div>
       <div id="tutorial-step-indicator" class="tutorial-step-indicator hidden">
         <span class="dot active" data-step="1"></span>
@@ -128,10 +135,11 @@
             <div class="cast-gauge">
               <div class="cast-gauge-fill" id="cast-fill"></div>
               <div class="cast-gauge-zone" id="cast-zone"></div>
+              <div class="cast-gauge-perfect-zone" id="cast-perfect-zone"></div>
               <div class="cast-gauge-marker" id="cast-marker"><span class="cast-lure-emoji">🪝</span></div>
             </div>
           </div>
-          <p class="phase-hint">🎯 마커가 <strong>초록 구간</strong>에 왔을 때 탭/스페이스바로 멈춰서 던져넣으세요!</p>
+          <p class="phase-hint">🎯 <strong>노란 구간</strong>에 멈추면 <strong>PERFECT 콤보</strong>! 초록은 1배.</p>
         </div>
         <div id="phase-bite" class="phase-pane hidden">
           <div class="bite-visual">

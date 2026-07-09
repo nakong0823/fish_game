@@ -636,6 +636,19 @@ function enterCasting() {
   // v2: 낚시 중 빌드 슬롯 실시간 갱신
   renderFishingBuild();
 
+  // v2: 콤보 카운터 갱신
+  const comboEl = qs('#fishing-combo');
+  if (comboEl) {
+    const c = run.runStats.castCombo || 0;
+    if (c >= 2) {
+      comboEl.classList.remove('hidden');
+      const cn = qs('#combo-num');
+      if (cn) cn.textContent = c;
+    } else {
+      comboEl.classList.add('hidden');
+    }
+  }
+
   applyTimeOfDay();
 
   const stage = run.stage;
@@ -707,6 +720,11 @@ function enterCasting() {
 
   setFishingHUD();
   setFishingPhase('CAST');
+
+  // v2: 캐스팅 카운트다운 (3-2-1-GO!) — 손맛 강화
+  if (!run.isTutorial) {
+    showCastCountdown();
+  }
 
   if (tutorialTier() === 1 && node.type === 'hotspot' && !meta.tooltipsShown.hotspot) {
     meta.tooltipsShown.hotspot = true;
@@ -1288,7 +1306,12 @@ function calcScore(ctx) {
 
   const base = fish.base;
   const sizeMult = 1.0 + (sizeRoll - fish.size_min) / Math.max(1, fish.size_max - fish.size_min);
-  const castMult = 0.8 + castAccuracy * 0.4;
+  // v2: 정확도 → castMult (PERFECT 0.95+ → 1.0, 콤보 누적시 추가)
+  const castCombo = run.runStats.castCombo || 0;
+  let castMult = 0.8 + castAccuracy * 0.4;
+  if (castAccuracy >= 0.95 && castCombo > 0) {
+    castMult = 1.0 + 0.05 * (castCombo - 1); // PERFECT 콤보 1당 +5% (최대 1.0+0.5 = 1.5x)
+  }
   const reelMult = perfect ? 1.3 : 1.0;
 
   let total = base * sizeMult * castMult * reelMult;
@@ -1819,6 +1842,48 @@ function renderCurrentBuild() {
 
     wrap.appendChild(slot);
   }
+}
+
+// v2: 캐스팅 카운트다운 (3-2-1-GO!) — 손맛 강화
+function showCastCountdown() {
+  if (!run) return;
+  const overlay = qs('#tutorial-overlay');
+  const emoji = qs('#tutorial-emoji');
+  const title = qs('#tutorial-title');
+  const desc = qs('#tutorial-desc');
+  const btn = qs('#tutorial-overlay-btn');
+  if (!overlay) return;
+
+  if (btn) btn.classList.add('hidden');
+  if (emoji) emoji.style.fontSize = '96px';
+
+  let count = 3;
+  const tick = () => {
+    if (!run || run.ended) {
+      if (btn) btn.classList.remove('hidden');
+      if (emoji) emoji.style.fontSize = '';
+      overlay.classList.add('hidden');
+      return;
+    }
+    if (count > 0) {
+      if (emoji) emoji.textContent = String(count);
+      if (title) title.textContent = '준비...';
+      if (desc) desc.innerHTML = '노란 구간에 멈추면 PERFECT!';
+      overlay.classList.remove('hidden');
+      count--;
+      setTimeout(tick, 600);
+    } else {
+      if (emoji) emoji.textContent = '🎣';
+      if (title) title.textContent = 'GO!';
+      if (desc) desc.innerHTML = '<span style="color: var(--accent); font-size: 24px; font-weight: 900;">던져라!</span>';
+      setTimeout(() => {
+        overlay.classList.add('hidden');
+        if (btn) btn.classList.remove('hidden');
+        if (emoji) emoji.style.fontSize = '';
+      }, 400);
+    }
+  };
+  tick();
 }
 
 // v2: 낚시 중 빌드 (가로 한 줄 작은 슬롯, 실시간)
@@ -2699,6 +2764,19 @@ function handleSpace(down) {
     if (!consumeBaitForCast()) return;
 
     try { window.playSound('cast'); } catch {}
+
+    // v2: PERFECT (≥0.95) 콤보 추적
+    if (cast.accuracy >= 0.95) {
+      run.runStats.castCombo = (run.runStats.castCombo || 0) + 1;
+      if (run.runStats.castCombo > 1) {
+        try { window.playSound('perfect'); } catch {}
+        spawnScorePopup(`🔥 PERFECT ×${run.runStats.castCombo}!`, 'mult', false);
+      } else {
+        try { window.playSound('perfect'); } catch {}
+      }
+    } else {
+      run.runStats.castCombo = 0;
+    }
 
     cast.phase = 'BITE';
     cast.biteState = 'wait';
