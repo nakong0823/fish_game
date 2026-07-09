@@ -97,6 +97,13 @@
           <span id="fishing-cast-info">1 / 2 손</span>
         </div>
       </header>
+
+      <!-- v2: 낚시 중 빌드 슬롯 (실시간) -->
+      <div class="fishing-build-bar" id="fishing-build-bar">
+        <div class="fishing-build-label">빌드</div>
+        <div class="build-slots fishing-build-slots" id="fishing-build-slots"></div>
+      </div>
+
       <div id="tutorial-hint" class="tutorial-hint hidden"></div>
       <div id="tutorial-step-indicator" class="tutorial-step-indicator hidden">
         <span class="dot active" data-step="1"></span>
@@ -163,8 +170,16 @@
         <div class="run-stats">
           <span>🔄 리롤 <strong id="reward-reroll">2</strong></span>
           <span>슬롯 <strong id="reward-slots">0</strong> / 5</span>
+          <span id="reward-signature-indicator"></span>
         </div>
       </header>
+
+      <!-- v2: 현재 빌드 (실시간 시각화) -->
+      <div class="reward-current-build" id="reward-current-build">
+        <div class="build-label">현재 빌드 (실시간)</div>
+        <div class="build-slots" id="reward-build-slots"></div>
+      </div>
+
       <div class="reward-cards" id="reward-cards"></div>
       <div class="reward-foot">
         <button class="btn btn-ghost" data-action="reroll-reward">🔄 리롤 (1토큰)</button>
@@ -225,7 +240,6 @@
       <div class="run-result-body" id="run-result-body"></div>
       <div class="run-result-foot">
         <button class="btn btn-primary btn-lg" id="run-result-play-again" data-action="play-again">🎣 한 판 더!</button>
-        <button class="btn btn-primary" data-action="ad-revive">📺 광고 보고 부활 (미끼+4)</button>
         <button class="btn btn-ghost" data-action="goto-meta">마을로</button>
       </div>
     </section>

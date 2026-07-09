@@ -328,7 +328,7 @@ function startRun(isTutorial) {
     beginnerSafetyNet: !isTutorial && meta.stats.totalRuns < CONFIG.BEGINNER_RUNS_THRESHOLD,
     beginnerSafetyNetUsed: false,
 
-    pendingRevive: false,
+    pendingRevive: false,  // legacy field, no longer used (광고 부활 기능 제거)
     signatureBonus: false,
     evolvedState: { abyssLordStacks: 0 },
 
@@ -632,6 +632,9 @@ function enterCasting() {
     finishRun(false);
     return;
   }
+
+  // v2: 낚시 중 빌드 슬롯 실시간 갱신
+  renderFishingBuild();
 
   applyTimeOfDay();
 
@@ -1683,6 +1686,17 @@ function renderReward() {
   safeText('#reward-reroll', run.rerollTokens);
   safeText('#reward-slots', `${run.joker.length} / ${run.jokerCapacity}${run.signatureBonus ? ' 🏆' : ''}`);
 
+  // v2: 시그니처 인디케이터 (헤더)
+  const sigInd = qs('#reward-signature-indicator');
+  if (sigInd) {
+    sigInd.innerHTML = run.signatureBonus
+      ? '<span style="color: var(--accent);">🏆 시그니처 완성</span>'
+      : '';
+  }
+
+  // v2: 현재 빌드 시각화 (5슬롯)
+  renderCurrentBuild();
+
   const btn = qs('[data-action="reroll-reward"]');
   if (btn) {
     const cost = run.rerollInScreen + 1;
@@ -1696,34 +1710,56 @@ function renderReward() {
 
   for (const c of rewardCards) {
     const div = document.createElement('div');
-    div.className = 'card rarity-' + c.rarity;
+    div.className = 'reward-card-v2 rarity-' + c.rarity;
 
     if (c.isEvolved) div.classList.add('is-evolution', 'is-evolve-glow');
 
     const owned = run.joker.find(j => j.id === c.id);
     const lv = owned ? owned.level : 0;
 
+    // 효과 미리보기 (실제 점수 효과 계산)
     let previewText = c.desc;
     if (c.num?.mult) previewText += ` ×${c.num.mult.base}`;
     if (c.num?.add) previewText += ` +${c.num.add.base}`;
-    if (c.num?.base && !c.num?.mult && !c.num?.add && c.num.base !== 0) {
-      previewText += ` (${c.num.base})`;
+
+    // 새로 추가 vs 레벨업 비교
+    let actionText;
+    if (c.isEvolved) {
+      actionText = '🌟 진화 카드';
+    } else if (owned) {
+      if (owned.level < 3) {
+        actionText = `⬆️ 레벨업 (Lv.${owned.level} → Lv.${owned.level + 1})`;
+      } else {
+        actionText = '⚠️ 이미 최대 레벨 (선택해도 변화 없음)';
+      }
+    } else if (run.joker.length >= run.jokerCapacity) {
+      actionText = '🔄 다른 카드 1개와 교체';
+    } else {
+      actionText = '🆕 새 카드 추가';
     }
 
+    // 카드 아이콘 (등급별)
+    const iconMap = {
+      common: '🃏', uncommon: '🎴', rare: '💎', legendary: '👑',
+    };
+
     div.innerHTML = `
-      <div class="card-rarity">${c.rarity}${owned ? ` · Lv.${lv}` : ''}${c.isEvolved ? ' · 진화' : ''}</div>
-      <div class="card-name">${c.name}</div>
-      <div class="card-desc">${c.desc}</div>
-      <div class="card-preview">${previewText}</div>
+      <div class="card-icon">${c.isEvolved ? '🌟' : (iconMap[c.rarity] || '🃏')}</div>
+      <div class="card-body">
+        <div class="card-rarity">${c.rarity.toUpperCase()}${owned ? ` · Lv.${lv}` : ''}${c.isEvolved ? ' · 진화' : ''}</div>
+        <div class="card-name">${c.name}</div>
+        <div class="card-desc">${c.desc}</div>
+        <div class="card-preview">${previewText}</div>
+        <div class="card-preview" style="background: rgba(99, 102, 241, .25); color: #c7d2fe; margin-top: 6px;">${actionText}</div>
+      </div>
     `;
 
     div.addEventListener('click', () => {
       if (rewardSelecting) return;
       rewardSelecting = true;
 
-      wrap.querySelectorAll('.card').forEach(el => {
+      wrap.querySelectorAll('.reward-card-v2').forEach(el => {
         el.classList.add('is-disabled');
-        el.style.pointerEvents = 'none';
       });
       div.classList.add('is-selected');
 
@@ -1747,6 +1783,78 @@ function renderReward() {
     });
 
     wrap.appendChild(div);
+  }
+}
+
+function renderCurrentBuild() {
+  if (!run) return;
+  const wrap = qs('#reward-build-slots');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+
+  // 5슬롯 모두 표시 (비어있으면 점선)
+  for (let i = 0; i < run.jokerCapacity; i++) {
+    const slot = document.createElement('div');
+    const j = run.joker[i];
+
+    if (j) {
+      const card = getCardById(j.id);
+      const iconMap = {
+        common: '🃏', uncommon: '🎴', rare: '💎', legendary: '👑',
+      };
+      slot.className = `build-slot is-filled rarity-${card?.rarity || 'common'}`;
+      slot.innerHTML = `
+        ${j.level > 1 ? `<span class="slot-lv">Lv.${j.level}</span>` : ''}
+        <span class="slot-icon">${card?.isEvolved ? '🌟' : (iconMap[card?.rarity] || '🃏')}</span>
+        <span class="slot-name">${card?.name || j.id}</span>
+      `;
+    } else {
+      slot.className = 'build-slot is-empty';
+      slot.innerHTML = `<span>+</span>`;
+    }
+
+    if (run.signatureBonus && i === run.jokerCapacity - 1 && j) {
+      slot.classList.add('is-signature-bonus');
+    }
+
+    wrap.appendChild(slot);
+  }
+}
+
+// v2: 낚시 중 빌드 (가로 한 줄 작은 슬롯, 실시간)
+function renderFishingBuild() {
+  if (!run) return;
+  const wrap = qs('#fishing-build-slots');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+
+  // 첫 슬롯에는 "LURE" 라벨 (현재 캐스팅의 카드 효과 강조)
+  for (let i = 0; i < run.jokerCapacity; i++) {
+    const slot = document.createElement('div');
+    const j = run.joker[i];
+
+    if (j) {
+      const card = getCardById(j.id);
+      const iconMap = {
+        common: '🃏', uncommon: '🎴', rare: '💎', legendary: '👑',
+      };
+      slot.className = `build-slot is-filled rarity-${card?.rarity || 'common'}`;
+      slot.title = `${card?.name || j.id} Lv.${j.level} — ${card?.desc || ''}`;
+      slot.innerHTML = `
+        ${j.level > 1 ? `<span class="slot-lv">Lv.${j.level}</span>` : ''}
+        <span class="slot-icon">${card?.isEvolved ? '🌟' : (iconMap[card?.rarity] || '🃏')}</span>
+        <span class="slot-name">${card?.name || j.id}</span>
+      `;
+    } else {
+      slot.className = 'build-slot is-empty';
+      slot.innerHTML = `<span>+</span>`;
+    }
+
+    if (run.signatureBonus && i === run.jokerCapacity - 1 && j) {
+      slot.classList.add('is-signature-bonus');
+    }
+
+    wrap.appendChild(slot);
   }
 }
 
@@ -2379,10 +2487,7 @@ function finishRun(win) {
     </div>
   `);
 
-  const adBtn = qs('button[data-action="ad-revive"]');
-  if (adBtn) {
-    adBtn.style.display = (!win && !run.pendingRevive) ? '' : 'none';
-  }
+  // (광고 부활 기능 제거됨)
 
   try { window.playSound(win ? 'clear' : 'miss'); } catch {}
 
@@ -2403,19 +2508,7 @@ function bestFishOfRun() {
 }
 
 function adRevive() {
-  if (!run || run.pendingRevive) return;
-
-  run.pendingRevive = true;
-  run.ended = false;
-  run.bait += 4;
-
-  // 현재 스테이지 재도전: 현재 스테이지 점수는 되돌림
-  run.totalScore = run.stageStartTotalScore || run.totalScore;
-  run.stageScore = 0;
-  run.stageStats = emptyStageStats();
-
-  toast('미끼 +4, 현재 스테이지 재도전!', 'good');
-  enterStage(run.stage);
+  // 광고 부활 기능 제거됨. 이 함수는 호출되지 않지만, 외부에서 참조할 가능성에 대비해 stub으로 남겨둠.
 }
 
 // ============================================================
@@ -2752,10 +2845,6 @@ document.addEventListener('click', (e) => {
 
     case 'leave-shop':
       advanceAfterNode();
-      break;
-
-    case 'ad-revive':
-      adRevive();
       break;
   }
 });
