@@ -1802,8 +1802,21 @@ function renderReward() {
 
     // 효과 미리보기 (실제 점수 효과 계산)
     let previewText = c.desc;
-    if (c.num?.mult) previewText += ` ×${c.num.mult.base}`;
-    if (c.num?.add) previewText += ` +${c.num.add.base}`;
+    let previewUpgraded = '';
+    if (c.num?.mult) {
+      previewText += ` ×${c.num.mult.base}`;
+      if (owned && owned.level < 3) {
+        const vUp = c.num.mult.base + c.num.mult.perLvl * owned.level;
+        previewUpgraded = `<span style="color: #fde68a;">⬆️ 레벨업 시 ×${vUp.toFixed(1)}</span>`;
+      }
+    }
+    if (c.num?.add) {
+      previewText += ` +${c.num.add.base}`;
+      if (owned && owned.level < 3) {
+        const vUp = c.num.add.base + c.num.add.perLvl * owned.level;
+        previewUpgraded = `<span style="color: #fde68a;">⬆️ 레벨업 시 +${Math.round(vUp)}</span>`;
+      }
+    }
 
     // 새로 추가 vs 레벨업 비교
     let actionText;
@@ -1833,6 +1846,7 @@ function renderReward() {
         <div class="card-name">${c.name}</div>
         <div class="card-desc">${c.desc}</div>
         <div class="card-preview">${previewText}</div>
+        ${previewUpgraded ? `<div class="card-preview" style="background: rgba(245, 158, 11, .2); color: #fde68a; margin-top: 4px;">${previewUpgraded}</div>` : ''}
         <div class="card-preview" style="background: rgba(99, 102, 241, .25); color: #c7d2fe; margin-top: 6px;">${actionText}</div>
       </div>
     `;
@@ -2219,6 +2233,7 @@ function renderShop() {
         <div class="card-name">${c.name}</div>
         <div class="card-desc">${c.desc}</div>
         <div class="card-preview">${previewText}</div>
+        ${previewUpgraded ? `<div class="card-preview" style="background: rgba(245, 158, 11, .2); color: #fde68a; margin-top: 4px;">${previewUpgraded}</div>` : ''}
         <div class="card-preview" style="background: rgba(99, 102, 241, .25); color: #c7d2fe; margin-top: 6px;">${actionText}</div>
         <div class="card-preview shop-status ${canAfford ? 'is-ok' : 'is-bad'}">${canAfford ? '🪱 2로 구매 가능' : `🔴 미끼 ${2 - run.bait}개 부족`}</div>
       </div>
