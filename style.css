@@ -613,32 +613,319 @@ button {
   font-weight: 700;
 }
 
-/* ---------- STAGE RESULT ---------- */
-.stage-result-body, .run-result-body {
+/* ---------- STAGE RESULT v2 ---------- */
+.screen-stage-result {
+  background: linear-gradient(180deg, #0f172a 0%, #082f49 50%, #0c4a6e 100%);
+  min-height: 100vh;
+  padding: 24px 16px;
+}
+.stage-result-hero {
+  text-align: center;
+  margin: 8px 0 28px;
+  animation: stage-hero-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes stage-hero-in {
+  from { transform: scale(0.7) translateY(-20px); opacity: 0; }
+  to   { transform: scale(1.0) translateY(0); opacity: 1; }
+}
+.stage-result-emoji {
+  font-size: 72px;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,.5));
+  animation: hero-bob 2s ease-in-out infinite;
+}
+@keyframes hero-bob {
+  0%, 100% { transform: translateY(0) rotate(-5deg); }
+  50%      { transform: translateY(-8px) rotate(5deg); }
+}
+.stage-result-headline {
+  font-size: 32px;
+  font-weight: 800;
+  margin: 0 0 4px;
+  background: linear-gradient(180deg, #fde68a, #f59e0b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,.5));
+}
+.stage-result-subline {
+  color: var(--ink-1);
+  font-size: 15px;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* 3개 큰 스탯 카드 (점수/퍼펙트/신규) */
+.stage-result-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  max-width: 720px;
+  margin: 0 auto 20px;
+}
+.stage-stat-card {
+  background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  padding: 18px 12px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.stage-stat-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top, rgba(255,255,255,0.06), transparent 70%);
+  pointer-events: none;
+}
+.stage-stat-card.is-score {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, #422006 0%, #1c0a02 100%);
+}
+.stage-stat-card.is-perfect {
+  border-color: #facc15;
+  background: linear-gradient(180deg, #422006 0%, #1c0a02 100%);
+}
+.stage-stat-card.is-newfish {
+  border-color: var(--ok);
+  background: linear-gradient(180deg, #14532d 0%, #052e16 100%);
+}
+.stage-stat-icon {
+  font-size: 36px;
+  margin-bottom: 6px;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,.4));
+}
+.stage-stat-num {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--ink-0);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.stage-stat-card.is-score .stage-stat-num { color: var(--accent); }
+.stage-stat-card.is-perfect .stage-stat-num { color: #facc15; }
+.stage-stat-card.is-newfish .stage-stat-num { color: var(--ok); }
+.stage-stat-label {
+  font-size: 12px;
+  color: var(--ink-2);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+}
+.stage-stat-sub {
+  font-size: 11px;
+  color: var(--ink-2);
+  margin-top: 4px;
+}
+
+/* 진행 막대 (3단계 동그라미) */
+.stage-progress {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 480px;
+  margin: 0 auto 24px;
+  padding: 8px 0;
+  position: relative;
+}
+.stage-progress::before {
+  content: '';
+  position: absolute;
+  top: 50%; left: 10%; right: 10%;
+  height: 3px;
+  background: var(--bg-2);
+  transform: translateY(-50%);
+  z-index: 0;
+}
+.stage-progress-dot {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: var(--bg-2);
+  border: 3px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  color: var(--ink-2);
+  font-weight: 700;
+  position: relative;
+  z-index: 1;
+  transition: all 0.3s ease;
+}
+.stage-progress-dot.is-done {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: white;
+  box-shadow: 0 0 12px rgba(34, 197, 94, .5);
+}
+.stage-progress-dot.is-current {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #111827;
+  box-shadow: 0 0 16px rgba(245, 158, 11, .6);
+  animation: current-pulse 1.5s ease-in-out infinite;
+}
+.stage-progress-dot.is-future {
+  background: var(--bg-2);
+  border-color: var(--line);
+  color: var(--ink-2);
+}
+@keyframes current-pulse {
+  0%, 100% { transform: scale(1.0); box-shadow: 0 0 16px rgba(245, 158, 11, .6); }
+  50%      { transform: scale(1.1); box-shadow: 0 0 24px rgba(245, 158, 11, .9); }
+}
+
+/* 리롤 토큰 배너 */
+.stage-reroll-banner {
+  max-width: 480px;
+  margin: 0 auto 20px;
+  padding: 14px 20px;
+  background: linear-gradient(90deg, #422006 0%, #78350f 50%, #422006 100%);
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  text-align: center;
+  font-weight: 800;
+  color: var(--accent);
+  font-size: 17px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, .3);
+  animation: reroll-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes reroll-pop {
+  from { transform: scale(0.8); opacity: 0; }
+  to   { transform: scale(1.0); opacity: 1; }
+}
+
+/* 다음 단계 미리보기 */
+.stage-next-preview {
+  max-width: 560px;
+  margin: 0 auto 24px;
+  padding: 18px 20px;
+  background: linear-gradient(135deg, #1e3a8a 0%, #0c1f4e 100%);
+  border: 2px solid #3b82f6;
+  border-radius: 14px;
+  text-align: center;
+}
+.stage-next-preview .label {
+  font-size: 12px;
+  color: #93c5fd;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.stage-next-preview .name {
+  font-size: 24px;
+  color: var(--ink-0);
+  font-weight: 800;
+  margin: 0 0 4px;
+}
+.stage-next-preview .target {
+  color: #93c5fd;
+  font-size: 14px;
+  margin: 0;
+  font-weight: 500;
+}
+.stage-next-preview .target strong {
+  color: var(--accent);
+  font-size: 18px;
+}
+
+/* 잡은 물고기 갤러리 */
+.stage-caught {
+  max-width: 720px;
+  margin: 0 auto 24px;
+}
+.stage-caught-title {
+  text-align: center;
+  font-size: 14px;
+  color: var(--ink-2);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+.stage-caught-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.stage-caught-item {
   background: var(--bg-1);
   border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 20px;
-  line-height: 1.7;
+  border-radius: 10px;
+  padding: 6px 10px;
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px;
+  color: var(--ink-1);
+  animation: caught-in 0.4s ease-out backwards;
 }
-.stat-row { display: flex; justify-content: space-between; padding: 4px 0; }
-.stat-label { color: var(--ink-2); }
-.stat-value { color: var(--ink-0); font-weight: 700; }
-.stat-row.is-good .stat-value { color: var(--ok); }
-.stat-row.is-bad .stat-value { color: var(--bad); }
-.stage-result-bar {
-  display: flex; gap: 6px; margin-top: 14px;
+.stage-caught-item.is-new {
+  border-color: var(--ok);
+  background: linear-gradient(135deg, #14532d, #052e16);
+  color: #bbf7d0;
 }
-.stage-result-bar-cell {
-  flex: 1; padding: 6px; text-align: center; border-radius: 6px;
-  background: var(--bg-2); font-size: 13px;
+.stage-caught-item.is-new::after {
+  content: '✨';
+  font-size: 11px;
 }
-.stage-result-bar-cell.is-current { background: var(--accent); color: #111827; font-weight: 700; }
-.reroll-banner {
-  margin-top: 14px; padding: 12px;
-  background: linear-gradient(90deg, #422006, #78350f);
-  border-radius: 8px;
-  text-align: center; font-weight: 700; color: var(--accent);
+.stage-caught-item .fish-emoji {
+  font-size: 22px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.5));
+}
+.stage-caught-item .name {
+  font-weight: 700;
+  color: var(--ink-0);
+}
+.stage-caught-item .size {
+  color: var(--ink-2);
+  font-size: 11px;
+}
+@keyframes caught-in {
+  from { transform: scale(0.5) translateY(10px); opacity: 0; }
+  to   { transform: scale(1.0) translateY(0); opacity: 1; }
+}
+
+/* CTA 버튼 (다음 낚시터로) */
+.stage-next-cta {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto;
+  padding: 18px 32px;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--bg-0);
+  background: linear-gradient(180deg, #fde68a, #f59e0b);
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(245, 158, 11, .45);
+  animation: cta-pulse 2s ease-in-out infinite;
+  transition: transform 0.15s;
+}
+.stage-next-cta:hover { transform: translateY(-2px); }
+.stage-next-cta:active { transform: translateY(0); }
+
+.stage-back-link {
+  display: block;
+  text-align: center;
+  margin-top: 14px;
+  color: var(--ink-2);
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+}
+.stage-back-link:hover { color: var(--ink-0); }
+
+@media (max-width: 600px) {
+  .stage-result-cards { grid-template-columns: 1fr; gap: 8px; }
+  .stage-result-headline { font-size: 26px; }
+  .stage-progress-dot { width: 40px; height: 40px; font-size: 18px; }
+  .stage-next-preview .name { font-size: 20px; }
 }
 
 /* ---------- TOAST ---------- */
