@@ -2779,11 +2779,16 @@ function finishRun(win) {
       </div>
     ` : ''}
 
+    <div id="run-result-extra-stats"></div>
+
     <div class="run-result-cta-group" style="margin-top: 24px;">
       <button class="run-result-cta" id="run-result-play-again" data-action="play-again">🎣 한 판 더!</button>
       <button class="run-result-cta secondary" data-action="goto-meta">🏘️ 마을로 돌아가기</button>
     </div>
   `);
+
+  // v24: RUN 통계 큰 헤더 (총점/최대콤보/PERFECT 비율 + 총 멀티/애드)
+  renderRunResultStats();
 
   // (광고 부활 기능 제거됨)
 
@@ -2798,6 +2803,79 @@ function finishRun(win) {
       setTimeout(() => tEl.remove(), 2100);
     }, 500);
   }
+}
+
+function renderRunResultStats() {
+  if (!run) return;
+  const slot = qs('#run-result-extra-stats');
+  if (!slot) return;
+
+  // 총 멀티 계산
+  let totalMult = 1.0;
+  for (const j of run.joker) {
+    const c = getCardById(j.id);
+    if (!c) continue;
+    if (c.num?.mult) {
+      totalMult *= c.num.mult.base + c.num.mult.perLvl * ((j.level || 1) - 1);
+    }
+    if (c.num?.extra) {
+      totalMult *= 1 + run.joker.length * c.num.extra.v;
+    }
+  }
+
+  // 총 애드 계산 (도감 스케일 포함)
+  let totalAdd = 0;
+  const encCount = Object.keys(meta.encyclopedia || {}).length;
+  for (const j of run.joker) {
+    const c = getCardById(j.id);
+    if (!c) continue;
+    if (c.num?.add) {
+      totalAdd += c.num.add.base + c.num.add.perLvl * ((j.level || 1) - 1);
+    }
+    if (c.num?.scale && c.num?.add) {
+      const scale = (j.level || 1) + 1;
+      totalAdd += (c.num.add.base + c.num.add.perLvl * ((j.level || 1) - 1)) * scale * encCount;
+    }
+  }
+
+  // 콤보 / PERFECT 비율
+  const bestCombo = run.runStats?.maxComboReel || 0;
+  const totalCasts = run.runStats?.totalCasts || 0;
+  const perfectCasts = run.runStats?.perfectReel || 0;
+  const perfectPct = totalCasts > 0 ? Math.round(perfectCasts / totalCasts * 100) : 0;
+
+  // 3개 큰 스탯 카드
+  let html = '<div class="run-result-stats" style="margin-top: 20px;">';
+  html += '<div class="run-result-stat">';
+  html += '<div class="run-result-stat-icon">🎯</div>';
+  html += '<div class="run-result-stat-num">' + (run.totalScore || 0).toLocaleString() + '</div>';
+  html += '<div class="run-result-stat-label">총 점수</div>';
+  html += '</div>';
+  html += '<div class="run-result-stat">';
+  html += '<div class="run-result-stat-icon">🔥</div>';
+  html += '<div class="run-result-stat-num">×' + bestCombo + '</div>';
+  html += '<div class="run-result-stat-label">최대 콤보</div>';
+  html += '</div>';
+  html += '<div class="run-result-stat">';
+  html += '<div class="run-result-stat-icon">⭐</div>';
+  html += '<div class="run-result-stat-num">' + perfectPct + '%</div>';
+  html += '<div class="run-result-stat-label">PERFECT 비율</div>';
+  html += '</div>';
+  html += '</div>';
+
+  // 멀티/애드 박스 (있을 때만)
+  if (totalMult !== 1.0 || totalAdd > 0) {
+    html += '<div class="run-result-stats" style="grid-template-columns: repeat(2, 1fr); max-width: 480px; margin-top: 10px;">';
+    if (totalMult !== 1.0) {
+      html += '<div class="run-result-stat"><div class="run-result-stat-icon">✨</div><div class="run-result-stat-num">x' + totalMult.toFixed(2) + '</div><div class="run-result-stat-label">최종 멀티플라이어</div></div>';
+    }
+    if (totalAdd > 0) {
+      html += '<div class="run-result-stat"><div class="run-result-stat-icon">+</div><div class="run-result-stat-num">+' + Math.round(totalAdd) + '</div><div class="run-result-stat-label">최종 추가점수</div></div>';
+    }
+    html += '</div>';
+  }
+
+  slot.innerHTML = html;
 }
 
 function bestFishOfRun() {
