@@ -318,85 +318,109 @@ button {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   min-height: 60vh; gap: 24px;
 }
-.phase-pane { display: flex; flex-direction: column; align-items: center; gap: 14px; }
-.phase-hint { color: var(--ink-2); font-size: 14px; margin: 0; }
+/* v2: 캐스팅/입질/릴링 — DD 즉각 피드백 + Balatro 임팩트 */
+.phase-pane {
+  display: flex; flex-direction: column; align-items: center; gap: 18px;
+  padding: 20px 12px;
+}
+.phase-hint {
+  color: var(--ink-1); font-size: 16px; margin: 0;
+  text-align: center; font-weight: 500;
+  text-shadow: 0 2px 4px rgba(0,0,0,.5);
+}
+.phase-hint strong {
+  color: var(--accent);
+  font-weight: 800;
+}
 
-/* 캐스팅 씬: 낚싯대 + 게이지 (장식용 회전원 제거, 조작 지점을 명확히) */
+/* 캐스팅 씬: 낚싯대 + 게이지 */
 .cast-scene {
-  display: flex; align-items: center; gap: 14px;
-  width: 100%; max-width: 560px;
+  display: flex; align-items: center; gap: 18px;
+  width: 100%; max-width: 600px;
   justify-content: center;
+  padding: 12px;
 }
 .cast-rod-emoji {
-  font-size: 40px;
+  font-size: 64px;
   transform: rotate(-15deg);
-  filter: drop-shadow(0 4px 8px rgba(0,0,0,.5));
+  filter: drop-shadow(0 6px 12px rgba(0,0,0,.6));
+  animation: rod-wiggle 1.4s ease-in-out infinite;
   flex-shrink: 0;
+}
+@keyframes rod-wiggle {
+  0%, 100% { transform: rotate(-15deg); }
+  50%      { transform: rotate(-10deg); }
 }
 
 /* CAST 게이지 */
 .cast-gauge {
   position: relative;
   flex: 1;
-  width: 80%; max-width: 500px; height: 40px;
-  background: var(--bg-2);
-  border: 1px solid var(--line);
-  border-radius: 20px;
+  width: 100%; max-width: 500px; height: 56px;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border: 3px solid var(--accent);
+  border-radius: 28px;
   overflow: visible;
+  box-shadow: 0 6px 20px rgba(0,0,0,.5), inset 0 0 12px rgba(0,0,0,.4);
 }
 .cast-gauge-fill {
   position: absolute; left: 0; top: 0; bottom: 0;
-  background: linear-gradient(90deg, #2563eb, #60a5fa);
+  background: linear-gradient(90deg, #2563eb 0%, #60a5fa 50%, #fde68a 100%);
   width: 0%;
-  border-radius: 20px;
+  border-radius: 26px;
+  transition: width .04s linear;
 }
 .cast-gauge-zone {
   position: absolute; top: 0; bottom: 0;
   background: rgba(34, 197, 94, .35);
-  border-left: 2px solid var(--ok);
-  border-right: 2px solid var(--ok);
+  border-left: 3px solid var(--ok);
+  border-right: 3px solid var(--ok);
   left: 60%; width: 20%;
   animation: cast-zone-glow 1s ease-in-out infinite;
+  border-radius: 0;
 }
 @keyframes cast-zone-glow {
-  0%, 100% { box-shadow: 0 0 6px rgba(34, 197, 94, .4) inset; }
-  50%      { box-shadow: 0 0 16px rgba(34, 197, 94, .9) inset; }
+  0%, 100% { box-shadow: 0 0 12px rgba(34, 197, 94, .5) inset, 0 0 8px rgba(34, 197, 94, .4); }
+  50%      { box-shadow: 0 0 20px rgba(34, 197, 94, .9) inset, 0 0 16px rgba(34, 197, 94, .7); }
 }
 .cast-gauge-marker {
-  position: absolute; top: 50%; width: 4px; height: 24px;
-  background: var(--accent);
+  position: absolute; top: 50%; width: 6px; height: 36px;
+  background: linear-gradient(180deg, #fde68a, #f59e0b);
   left: 0%;
   transform: translate(-50%, -50%);
   transition: left .04s linear;
+  border-radius: 3px;
+  box-shadow: 0 0 12px rgba(245, 158, 11, .8);
 }
 .cast-lure-emoji {
   position: absolute;
-  left: 50%; top: -30px;
+  left: 50%; top: -36px;
   transform: translateX(-50%);
-  font-size: 22px;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,.5));
+  font-size: 28px;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,.5));
 }
 
-/* BITE 시각화: 카운트다운 링 + 상태별 아이콘 */
+/* BITE 시각화: 큰 카운트다운 링 + 펄스 */
 .bite-visual {
   position: relative;
-  width: 130px; height: 130px;
+  width: 180px; height: 180px;
   display: flex; align-items: center; justify-content: center;
 }
 .bite-ring {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
   transform: rotate(-90deg);
+  filter: drop-shadow(0 0 12px rgba(239, 68, 68, .4));
 }
 .bite-ring-track {
   fill: none;
-  stroke: rgba(255,255,255,.12);
-  stroke-width: 6;
+  stroke: rgba(255,255,255,.15);
+  stroke-width: 8;
 }
 .bite-ring-progress {
   fill: none;
   stroke: var(--bad);
-  stroke-width: 6;
+  stroke-width: 8;
   stroke-linecap: round;
   stroke-dasharray: 276.5;
   stroke-dashoffset: 276.5;
