@@ -786,6 +786,13 @@ button {
   text-align: left;
   position: relative;
   overflow: hidden;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.reward-card-v2 .card-body {
+  flex: 1 1 0;
+  min-width: 0;
 }
 .reward-card-v2::before {
   content: '';
@@ -810,7 +817,6 @@ button {
   flex-shrink: 0;
   filter: drop-shadow(0 3px 6px rgba(0,0,0,.4));
 }
-.reward-card-v2 .card-body { flex: 1; min-width: 0; }
 .reward-card-v2 .card-rarity {
   font-size: 11px;
   color: var(--ink-2);
@@ -848,9 +854,19 @@ button {
 }
 
 @media (min-width: 720px) {
-  .reward-cards { flex-direction: row; max-width: 900px; gap: 14px; }
-  .reward-card-v2 { flex-direction: column; padding: 18px 14px; text-align: center; }
+  .reward-cards { flex-direction: row; max-width: 900px; gap: 14px; align-items: stretch; }
+  .reward-card-v2 {
+    flex: 1 1 0;
+    flex-direction: column;
+    padding: 18px 14px;
+    text-align: center;
+    width: auto;
+    min-width: 0;
+  }
+  .reward-card-v2 .card-body { width: 100%; }
   .reward-card-v2 .card-icon { font-size: 56px; }
+  .reward-card-v2 .card-desc { font-size: 12px; min-height: 3.6em; }
+  .reward-card-v2 .card-preview { font-size: 11px; word-break: keep-all; }
 }
 .card {
   background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
@@ -1772,11 +1788,184 @@ button {
 }
 .stage-back-link:hover { color: var(--ink-0); }
 
+/* v3: STAGE RESULT v3 — 점수 진행률 + 보조 스탯 + 어종 카드 */
+.stage-score-hero {
+  max-width: 720px;
+  margin: 0 auto 20px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #1e3a8a 0%, #0c1f4e 100%);
+  border: 2px solid #3b82f6;
+  border-radius: 16px;
+  text-align: center;
+}
+.stage-score-label {
+  font-size: 12px;
+  color: #93c5fd;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.stage-score-bar {
+  position: relative;
+  height: 28px;
+  background: var(--bg-2);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  border: 1px solid var(--line);
+}
+.stage-score-bar-fill {
+  position: absolute; top: 0; left: 0; bottom: 0;
+  background: linear-gradient(90deg, #3b82f6, var(--accent));
+  border-radius: 14px;
+  transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 0 12px rgba(245, 158, 11, .4);
+}
+.stage-score-bar-text {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+  font-weight: 800;
+  font-size: 15px;
+  text-shadow: 0 1px 4px rgba(0,0,0,.6);
+  z-index: 1;
+}
+.stage-score-pct {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--accent);
+  text-shadow: 0 0 12px rgba(245, 158, 11, .4);
+}
+
+/* 보조 스탯 3개 (가로 균등) */
+.stage-mini-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  max-width: 720px;
+  margin: 0 auto 20px;
+}
+.stage-mini-stat {
+  background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 8px;
+  text-align: center;
+}
+.stage-mini-stat .mini-icon { font-size: 28px; margin-bottom: 4px; }
+.stage-mini-stat .mini-num {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--ink-0);
+  line-height: 1;
+}
+.stage-mini-stat .mini-label {
+  font-size: 11px;
+  color: var(--ink-2);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+/* 잡은 어종 큰 카드 그리드 */
+.stage-caught-section {
+  max-width: 720px;
+  margin: 0 auto 24px;
+  padding: 0 4px;
+}
+.stage-section-title {
+  text-align: center;
+  font-size: 14px;
+  color: var(--ink-2);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 700;
+  margin: 0 0 14px;
+}
+.stage-fish-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+.stage-fish-card {
+  position: relative;
+  background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 6px 8px;
+  text-align: center;
+  transition: transform .15s, box-shadow .2s;
+}
+.stage-fish-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,.4);
+}
+.stage-fish-card.is-new {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, #422006 0%, #1c0a02 100%);
+  box-shadow: 0 0 12px rgba(245, 158, 11, .4);
+}
+.stage-fish-new-badge {
+  position: absolute;
+  top: -6px; right: -6px;
+  background: var(--accent);
+  color: var(--bg-0);
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.4);
+}
+.stage-fish-photo {
+  width: 100%;
+  aspect-ratio: 1;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 6px;
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.stage-fish-photo img,
+.stage-fish-photo .fish-emoji {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  font-size: 48px;
+}
+.stage-fish-photo .fish-emoji {
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.4));
+}
+.stage-fish-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-0);
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 2px;
+}
+.stage-fish-size {
+  font-size: 10px;
+  color: var(--ink-2);
+}
+
 @media (max-width: 600px) {
   .stage-result-cards { grid-template-columns: 1fr; gap: 8px; }
   .stage-result-headline { font-size: 26px; }
   .stage-progress-dot { width: 40px; height: 40px; font-size: 18px; }
   .stage-next-preview .name { font-size: 20px; }
+  .stage-fish-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .stage-score-pct { font-size: 22px; }
+  .stage-mini-stats { gap: 6px; }
+  .stage-mini-stat { padding: 10px 4px; }
+  .stage-mini-stat .mini-num { font-size: 18px; }
 }
 
 /* ---------- TOAST ---------- */

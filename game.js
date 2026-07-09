@@ -2302,12 +2302,12 @@ function renderStageResult(achieved, target) {
   const nextTarget = (typeof CONFIG !== 'undefined' && CONFIG.STAGE_TARGET) ? CONFIG.STAGE_TARGET[nextStage - 1] : null;
   const isLastStage = run.stage >= CONFIG.RUN.stages;
 
-  // 잡은 물고기 정보 (이번 스테이지)
-  const recent = (run.runStats && run.runStats.caughtFish) ? run.runStats.caughtFish.slice(-10) : [];
+  // 잡은 물고기 정보 (이번 스테이지, 중복 제거 + 신규 우선)
+  const recent = (run.runStats && run.runStats.caughtFish) ? run.runStats.caughtFish.slice(-12) : [];
 
   let html = '';
 
-  // 1) 히어로 헤더
+  // === 1. 히어로 헤더 ===
   html += `
     <div class="stage-result-hero">
       <div class="stage-result-emoji">🎣</div>
@@ -2316,31 +2316,41 @@ function renderStageResult(achieved, target) {
     </div>
   `;
 
-  // 2) 3개 큰 스탯 카드
+  // === 2. 점수 진행률 큰 게이지 (1개 핵심) ===
+  const stageScorePct = Math.min(100, overPct);
   html += `
-    <div class="stage-result-cards">
-      <div class="stage-stat-card is-score">
-        <div class="stage-stat-icon">🎯</div>
-        <div class="stage-stat-num">${achieved}</div>
-        <div class="stage-stat-label">점수</div>
-        <div class="stage-stat-sub">목표 ${target} · ${overPct}%</div>
+    <div class="stage-score-hero">
+      <div class="stage-score-label">이번 판 점수</div>
+      <div class="stage-score-bar">
+        <div class="stage-score-bar-fill" style="width:${stageScorePct}%"></div>
+        <div class="stage-score-bar-text">${achieved} / ${target}점</div>
       </div>
-      <div class="stage-stat-card is-perfect">
-        <div class="stage-stat-icon">⭐</div>
-        <div class="stage-stat-num">${s.perfect}</div>
-        <div class="stage-stat-label">퍼펙트</div>
-        <div class="stage-stat-sub">완벽한 릴링</div>
+      <div class="stage-score-pct">${overPct}% 달성</div>
+    </div>
+  `;
+
+  // === 3. 보조 스탯 3개 (가로 균등) ===
+  html += `
+    <div class="stage-mini-stats">
+      <div class="stage-mini-stat">
+        <div class="mini-icon">⭐</div>
+        <div class="mini-num">${s.perfect}</div>
+        <div class="mini-label">퍼펙트</div>
       </div>
-      <div class="stage-stat-card is-newfish">
-        <div class="stage-stat-icon">🐟</div>
-        <div class="stage-stat-num">${s.newFish.size}</div>
-        <div class="stage-stat-label">신규 어종</div>
-        <div class="stage-stat-sub">${s.catches}마리 중</div>
+      <div class="stage-mini-stat">
+        <div class="mini-icon">🐟</div>
+        <div class="mini-num">${s.catches}</div>
+        <div class="mini-label">총 마리</div>
+      </div>
+      <div class="stage-mini-stat">
+        <div class="mini-icon">✨</div>
+        <div class="mini-num">${s.newFish.size}</div>
+        <div class="mini-label">신규 어종</div>
       </div>
     </div>
   `;
 
-  // 3) 진행 막대 (3단계 동그라미)
+  // === 4. 진행 막대 (3단계 동그라미) ===
   html += `<div class="stage-progress">`;
   for (let n = 1; n <= 3; n++) {
     let cls = 'is-future';
@@ -2351,7 +2361,7 @@ function renderStageResult(achieved, target) {
   }
   html += `</div>`;
 
-  // 4) 리롤 토큰 배너
+  // === 5. 리롤 토큰 배너 ===
   if (s.tokensGained > 0) {
     html += `
       <div class="stage-reroll-banner">
@@ -2360,7 +2370,29 @@ function renderStageResult(achieved, target) {
     `;
   }
 
-  // 5) 다음 단계 미리보기 (마지막 단계가 아닐 때)
+  // === 6. 잡은 어종 큰 카드 그리드 ===
+  if (recent.length > 0) {
+    html += `
+      <div class="stage-caught-section">
+        <h3 class="stage-section-title">이번에 잡은 어종 (${recent.length}마리)</h3>
+        <div class="stage-fish-grid">
+    `;
+    for (const f of recent) {
+      const isNew = s.newFish.has(f.id);
+      const photo = (typeof fishImageHTML === 'function') ? fishImageHTML(f.id) : '';
+      html += `
+        <div class="stage-fish-card ${isNew ? 'is-new' : ''}">
+          ${isNew ? '<div class="stage-fish-new-badge">NEW</div>' : ''}
+          <div class="stage-fish-photo">${photo}</div>
+          <div class="stage-fish-name">${f.name}</div>
+          <div class="stage-fish-size">${f.size}cm</div>
+        </div>
+      `;
+    }
+    html += `</div></div>`;
+  }
+
+  // === 7. 다음 단계 미리보기 + CTA ===
   if (!isLastStage && nextInfo) {
     html += `
       <div class="stage-next-preview">
@@ -2379,28 +2411,7 @@ function renderStageResult(achieved, target) {
     `;
   }
 
-  // 6) 잡은 물고기 갤러리 (최대 10개)
-  if (recent.length > 0) {
-    html += `
-      <div class="stage-caught">
-        <h3 class="stage-caught-title">이번 출조 어획 (${recent.length}마리)</h3>
-        <div class="stage-caught-grid">
-    `;
-    for (const f of recent) {
-      const isNew = s.newFish.has(f.id);
-      const emoji = (typeof FISH_EMOJI !== 'undefined' && FISH_EMOJI[f.id]) ? FISH_EMOJI[f.id] : '🐟';
-      html += `
-        <div class="stage-caught-item ${isNew ? 'is-new' : ''}">
-          <span class="fish-emoji">${emoji}</span>
-          <span class="name">${f.name}</span>
-          <span class="size">${f.size}cm</span>
-        </div>
-      `;
-    }
-    html += `</div></div>`;
-  }
-
-  // 7) CTA 버튼 + 포기 링크
+  // === 8. CTA 버튼 + 포기 링크 ===
   if (!isLastStage) {
     html += `
       <button class="stage-next-cta" id="stage-result-next-cta">🎣 ${nextInfo?.name || '다음 낚시터'}로!</button>
