@@ -1902,6 +1902,10 @@ function renderCurrentBuild() {
 
     wrap.appendChild(slot);
   }
+  if (wrap.id === 'fishing-build-slots') {
+    renderFishingEffects();
+    renderNextEvolutionHint();
+  }
 }
 
 // v2: 캐스팅 카운트다운 (3-2-1-GO!) — 손맛 강화
@@ -1946,6 +1950,88 @@ function showCastCountdown() {
   tick();
 }
 
+// v22: 낚시 중 능력 효과 요약
+function renderFishingEffects() {
+  if (!run) return;
+  const wrap = qs('#effects-content');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  if (!run.joker || run.joker.length === 0) {
+    wrap.innerHTML = '<span class="effects-empty">아직 능력이 없어요</span>';
+    return;
+  }
+  let multSum = 1.0;
+  let addSum = 0;
+  const chips = [];
+  for (const j of run.joker) {
+    const card = getCardById(j.id);
+    if (!card) continue;
+    const lv = j.level || 1;
+    const num = card.num;
+    if (!num) continue;
+    let chipText = '';
+    if (num.mult) {
+      const v = num.mult.base + (lv - 1) * num.mult.perLvl;
+      multSum *= v;
+      chipText = 'x' + v.toFixed(1);
+    } else if (num.add) {
+      const v = num.add.base + (lv - 1) * num.add.perLvl;
+      addSum += v;
+      chipText = '+' + Math.round(v);
+    } else if (num.extra) {
+      const v = 1 + run.joker.length * num.extra.v;
+      multSum *= v;
+      chipText = 'x' + v.toFixed(2) + ' (' + run.joker.length + '장)';
+    } else if (num.scale && num.add) {
+      const baseV = num.add.base + (lv - 1) * num.add.perLvl;
+      const scale = lv + 1;
+      const v = baseV * scale * (Object.keys(meta.encyclopedia || {}).length || 0);
+      addSum += v;
+      chipText = '+' + v + ' (도감x' + scale + ')';
+    }
+    if (chipText) {
+      const cls = 'effect-chip is-' + (card.rarity || 'common');
+      const safeName = card.name.replace(/[<>&"]/g, '?');
+      const safeDesc = card.desc.replace(/[<>&"]/g, '?');
+      chips.push('<span class="' + cls + '" title="' + safeName + ' Lv.' + lv + ' — ' + safeDesc + '">' + safeName + ' ' + chipText + '</span>');
+    }
+  }
+  if (chips.length === 0) {
+    wrap.innerHTML = '<span class="effects-empty">점수 효과 없음 (유틸만)</span>';
+    return;
+  }
+  let totalHtml = '';
+  if (multSum !== 1.0 || addSum !== 0) {
+    const parts = [];
+    if (multSum !== 1.0) parts.push('<strong style="color: #fde68a;">x' + multSum.toFixed(2) + '</strong> 멀티');
+    if (addSum !== 0) parts.push('<strong style="color: #fde68a;">+' + Math.round(addSum) + '</strong> 추가');
+    totalHtml = '<span class="effect-chip" style="background: rgba(245, 158, 11, .3); border-color: #fde68a;">총 ' + parts.join(' + ') + '</span>';
+  }
+  wrap.innerHTML = totalHtml + chips.join('');
+}
+
+function renderNextEvolutionHint() {
+  if (!run) return;
+  const wrap = qs('#effects-next-evo');
+  if (!wrap) return;
+  wrap.classList.remove('has-evo');
+  const evos = availableEvolutions();
+  if (!evos || evos.length === 0) {
+    wrap.textContent = '';
+    return;
+  }
+  const nextEvo = evos[0];
+  const evo = (typeof EVOLUTIONS !== 'undefined' ? EVOLUTIONS : []).find(e => e.evolveId === nextEvo.evolveId);
+  if (!evo) {
+    wrap.textContent = '';
+    return;
+  }
+  const baseCard = run.joker.find(j => j.id === evo.base);
+  const needLv = (baseCard && baseCard.level >= 3) ? 'Lv.3 도달' : 'Lv.' + (baseCard ? baseCard.level : 0) + '/3 필요';
+  wrap.innerHTML = '다음 진화 가능: <strong>' + evo.evolveName + '</strong> (' + needLv + ')';
+  wrap.classList.add('has-evo');
+}
+
 // v2: 낚시 중 빌드 (가로 한 줄 작은 슬롯, 실시간)
 function renderFishingBuild() {
   if (!run) return;
@@ -1980,6 +2066,10 @@ function renderFishingBuild() {
     }
 
     wrap.appendChild(slot);
+  }
+  if (wrap.id === 'fishing-build-slots') {
+    renderFishingEffects();
+    renderNextEvolutionHint();
   }
 }
 

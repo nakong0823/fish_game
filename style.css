@@ -714,6 +714,62 @@ button {
   .fishing-combo .combo-num { font-size: 24px; }
 }
 
+/* v22: 낚시 중 능력치 요약 (총점 보너스 + 다음 강화) */
+.fishing-effects-summary {
+  max-width: 720px;
+  margin: 0 auto 10px;
+  padding: 8px 14px;
+  background: linear-gradient(180deg, rgba(168, 85, 247, .12) 0%, rgba(168, 85, 247, .04) 100%);
+  border: 1px solid var(--rarity-legendary);
+  border-radius: 10px;
+}
+.effects-label {
+  font-size: 10px;
+  color: #fde68a;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.effects-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-1);
+  font-weight: 500;
+}
+.effects-empty {
+  color: var(--ink-2);
+  font-size: 12px;
+  font-style: italic;
+}
+.effect-chip {
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid var(--rarity-legendary);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: #fde68a;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.effect-chip.is-rare { border-color: var(--rarity-rare); color: #93c5fd; }
+.effect-chip.is-uncommon { border-color: var(--rarity-uncommon); color: #86efac; }
+.effect-chip.is-common { border-color: var(--line); color: var(--ink-1); }
+.effects-next-evo {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #fde68a;
+  font-weight: 700;
+  display: none;
+}
+.effects-next-evo.has-evo { display: block; animation: evo-glow 2s ease-in-out infinite; }
+@keyframes evo-glow {
+  0%, 100% { text-shadow: 0 0 4px rgba(245, 158, 11, .4); }
+  50%      { text-shadow: 0 0 12px rgba(245, 158, 11, .9); }
+}
+
 /* v2: 낚시 중 빌드 바 (가로 한 줄, 작은 슬롯) */
 .fishing-build-bar {
   display: flex;
