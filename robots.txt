@@ -1,11 +1,15 @@
 User-agent: *
 Allow: /
 
-# AdSense 크롤러는 명시적으로 허용
+# 네이버 검색로봇 명시적 허용 (Yeti는 네이버의 검색 봇 UA)
+User-agent: Yeti
+Allow: /
+
+# AdSense 크롤러 명시적 허용
 User-agent: Mediapartners-Google
 Allow: /
 
-# AI 학습용 크롤러 차단 (AdSense는 영향 없음, 콘텐츠 보호 목적)
+# AI 학습용 크롤러 차단 (콘텐츠 보호 목적, AdSense 영향 없음)
 User-agent: GPTBot
 Disallow: /
 User-agent: ClaudeBot
