@@ -174,6 +174,35 @@ function showOnePointTip(text) {
   setTimeout(() => el.remove(), 3600);
 }
 
+// v17: 단계 결과 flash 화면 — 자동 + 클릭 양쪽 지원
+function showPhaseFlash(phaseName, durationMs, onComplete) {
+  // phaseName: 'BITE_OK' | 'REEL_OK' | 'MISS' (custom sub-text by id="reel-ok-sub" or "miss-sub")
+  const phaseEl = qs('#phase-' + phaseName.toLowerCase().replace('_', '-'));
+  if (!phaseEl) { onComplete && onComplete(); return; }
+
+  // 화면 표시
+  setFishingPhase(phaseName);
+  let autoTimer = setTimeout(() => {
+    onComplete && onComplete();
+  }, durationMs);
+
+  // 클릭/스페이스 시 즉시 진행 (한 번만)
+  let resolved = false;
+  const resolve = () => {
+    if (resolved) return;
+    resolved = true;
+    clearTimeout(autoTimer);
+    document.removeEventListener('pointerdown', resolve);
+    document.removeEventListener('keydown', spaceResolve);
+    onComplete && onComplete();
+  };
+  const spaceResolve = (e) => {
+    if (e.code === 'Space') { e.preventDefault(); resolve(); }
+  };
+  document.addEventListener('pointerdown', resolve, { once: true });
+  document.addEventListener('keydown', spaceResolve);
+}
+
 // ============================================================
 // 3. 저장
 // ============================================================
@@ -366,9 +395,9 @@ function enterTutorialCasting() {
 }
 
 const TUTORIAL_STEPS = [
-  { emoji: '🎯', title: 'STEP 1 · 캐스팅', desc: '낚싯줄을 던져요.<br/><strong>초록 구간</strong>일 때 손을 떼면 정확하게 던져집니다!' },
+  { emoji: '🎯', title: 'STEP 1 · 캐스팅', desc: '낚싯줄을 던져요.<br/><strong>노란 구간</strong>일 때 손을 떼면 PERFECT 콤보!' },
   { emoji: '🐟', title: 'STEP 2 · 입질', desc: '물고기가 미끼를 물어요.<br/>링이 <strong>다 차면</strong> 즉시 탭! 늦으면 놓칩니다.' },
-  { emoji: '⚡', title: 'STEP 3 · 릴링', desc: '물고기를 끌어올려요.<br/><strong>파랑(이완)</strong>일 때 누르고, <strong>빨강(저항)</strong>일 때 살짝!' },
+  { emoji: '⚡', title: 'STEP 3 · 릴링', desc: '낚시줄 텐션을 <strong>초록(안전) 구간</strong>에 유지!<br/>📈 진행도 <strong>100%</strong> 차면 물고기 잡힘! 줄 끊기면 실패.' },
 ];
 
 function showTutorialOverlay(stepIdx, onDismiss) {
@@ -1066,27 +1095,41 @@ function finalizeCast(success, perfect) {
     run.runStats.comboReel = 0;
 
     setFishingHUD();
-    setFishingPhase('RESULT');
 
-    safeHTML(
-      '#fish-line',
-      run.isTutorial
-        ? `<div style="font-size:48px;">💨</div><div style="font-size:18px;margin-top:8px;">아쉽지만 괜찮아요! 다시 도전해봐요</div>`
-        : `<div style="font-size:48px;">💨</div><div style="font-size:18px;margin-top:8px;">놓침! 점수 0</div>`
-    );
-
-    const scoreEl = qs('#fish-score');
-    if (scoreEl) {
-      scoreEl.textContent = '+0';
-      scoreEl.classList.remove('count-up');
-      void scoreEl.offsetWidth;
-      scoreEl.classList.add('count-up');
+    // v17: MISS flash 화면 (1초 or 클릭) → RESULT phase로 자동
+    const missSub = qs('#miss-sub');
+    const missTitle = qs('#miss-title');
+    if (cast.tension >= 100) {
+      if (missTitle) missTitle.textContent = '💥 라인 파손!';
+      if (missSub) missSub.textContent = '낚시줄이 끊어졌어요';
+    } else if (cast.reelTimeMs <= 0) {
+      if (missTitle) missTitle.textContent = '⏰ 시간 초과!';
+      if (missSub) missSub.textContent = '12초 안에 끌어올리지 못했어요';
+    } else {
+      if (missTitle) missTitle.textContent = '💨 놓침!';
+      if (missSub) missSub.textContent = '아쉬워요!';
     }
-
-    try { window.playSound('miss'); } catch {}
-
     cast.phase = 'MISS';
-    cast.phaseT = run.isTutorial ? 0.9 : 0.8;
+    cast.phaseT = 0.8;  // 하위 호환 (fishingTick 분기)
+    showPhaseFlash('MISS', 1000, () => {
+      setFishingPhase('RESULT');
+      safeHTML(
+        '#fish-line',
+        run.isTutorial
+          ? `<div style="font-size:48px;">💨</div><div style="font-size:18px;margin-top:8px;">아쉽지만 괜찮아요! 다시 도전해봐요</div>`
+          : `<div style="font-size:48px;">💨</div><div style="font-size:18px;margin-top:8px;">놓침! 점수 0</div>`
+      );
+      const scoreEl = qs('#fish-score');
+      if (scoreEl) {
+        scoreEl.textContent = '+0';
+        scoreEl.classList.remove('count-up');
+        void scoreEl.offsetWidth;
+        scoreEl.classList.add('count-up');
+      }
+      try { window.playSound('miss'); } catch {}
+      cast.phase = 'CATCH';
+      cast.phaseT = run.isTutorial ? 0.9 : 0.8;
+    });
     return;
   }
 
@@ -1113,28 +1156,37 @@ function finalizeCast(success, perfect) {
     setFishingHUD();
     setFishingPhase('RESULT');
 
-    safeHTML('#fish-line', `
-      <div class="catch-fish-svg">${fishImageHTML(fish.id)}</div>
-      <div style="font-size:18px;margin-top:8px;">
-        <strong>${fish.name}</strong>
-        <span class="stat-value">(${sizeRoll}cm)</span>
-        ${perfect ? '⭐ 완벽한 릴링!' : '잘하셨어요!'}
-      </div>
-    `);
-
-    const scoreEl = qs('#fish-score');
-    if (scoreEl) {
-      scoreEl.textContent = perfect ? '⭐ PERFECT' : '✅ 성공';
-      scoreEl.classList.remove('count-up');
-      void scoreEl.offsetWidth;
-      scoreEl.classList.add('count-up');
+    // v17: REEL_OK flash (1초 or 클릭) → 어종 표시
+    const reelOkSub = qs('#reel-ok-sub');
+    if (reelOkSub) {
+      reelOkSub.textContent = perfect ? '⭐ 완벽한 릴링!' : '물고기를 끌어올렸어요';
     }
+    showPhaseFlash('REEL_OK', 1000, () => {
+      setFishingPhase('RESULT');
 
-    try { window.playSound(perfect ? 'perfect' : 'catch'); } catch {}
+      safeHTML('#fish-line', `
+        <div class="catch-fish-svg">${fishImageHTML(fish.id)}</div>
+        <div style="font-size:18px;margin-top:8px;">
+          <strong>${fish.name}</strong>
+          <span class="stat-value">(${sizeRoll}cm)</span>
+          ${perfect ? '⭐ 완벽한 릴링!' : '잘하셨어요!'}
+        </div>
+      `);
 
-    run.tutorialCatches += 1;
-    cast.phase = 'CATCH';
-    cast.phaseT = 1.2;
+      const scoreEl = qs('#fish-score');
+      if (scoreEl) {
+        scoreEl.textContent = perfect ? '⭐ PERFECT' : '✅ 성공';
+        scoreEl.classList.remove('count-up');
+        void scoreEl.offsetWidth;
+        scoreEl.classList.add('count-up');
+      }
+
+      try { window.playSound(perfect ? 'perfect' : 'catch'); } catch {}
+
+      run.tutorialCatches += 1;
+      cast.phase = 'CATCH';
+      cast.phaseT = 1.5;  // 하위 호환 (fishingTick 자동 진행)
+    });
     return;
   }
 
@@ -1183,33 +1235,40 @@ function finalizeCast(success, perfect) {
   const isLegendary = fish.tier >= 4;
 
   setFishingHUD();
-  setFishingPhase('RESULT');
 
-  safeHTML('#fish-line', `
-    <div class="catch-fish-svg${isLegendary ? ' is-legendary' : ''}">${fishImageHTML(fish.id)}</div>
-    <div style="font-size:18px;margin-top:8px;">
-      <strong>${fish.name}</strong>
-      <span class="stat-value">(${sizeRoll}cm)</span>
-      ${perfect ? '⭐ 퍼펙트' : ''}
-    </div>
-  `);
-
-  const scoreEl = qs('#fish-score');
-  if (scoreEl) {
-    scoreEl.textContent = `+${gained}`;
-    scoreEl.classList.remove('count-up');
-    void scoreEl.offsetWidth;
-    scoreEl.classList.add('count-up');
+  // v17: REEL_OK flash (1초 or 클릭) → 어종 표시
+  const reelOkSub2 = qs('#reel-ok-sub');
+  if (reelOkSub2) {
+    reelOkSub2.textContent = perfect ? '⭐ 완벽한 릴링!' : (isLegendary ? '🌟 전설의 어종!' : '물고기를 끌어올렸어요');
   }
+  showPhaseFlash('REEL_OK', 1000, () => {
+    setFishingPhase('RESULT');
 
-  try { window.playSound(perfect ? 'perfect' : 'catch'); } catch {}
+    safeHTML('#fish-line', `
+      <div class="catch-fish-svg${isLegendary ? ' is-legendary' : ''}">${fishImageHTML(fish.id)}</div>
+      <div style="font-size:18px;margin-top:8px;">
+        <strong>${fish.name}</strong>
+        <span class="stat-value">(${sizeRoll}cm)</span>
+        ${perfect ? '⭐ 퍼펙트' : ''}
+      </div>
+    `);
 
-  spawnScorePopup(`+${gained}`, 'add', gained >= 100);
+    const scoreEl = qs('#fish-score');
+    if (scoreEl) {
+      scoreEl.textContent = `+${gained}`;
+      scoreEl.classList.remove('count-up');
+      void scoreEl.offsetWidth;
+      scoreEl.classList.add('count-up');
+    }
 
-  if (isLegendary) {
-    spawnLegendFlash(fish.name);
-    try { window.playSound('evolve'); } catch {}
-  } else if (gained >= 500) {
+    try { window.playSound(perfect ? 'perfect' : 'catch'); } catch {}
+
+    spawnScorePopup(`+${gained}`, 'add', gained >= 100);
+
+    if (isLegendary) {
+      spawnLegendFlash(fish.name);
+      try { window.playSound('evolve'); } catch {}
+    } else if (gained >= 500) {
     spawnScorePopup('🔥🔥 신기록!', 'mult', true);
     const screen = qs('#screen-fishing');
     if (screen) {
@@ -1234,8 +1293,9 @@ function finalizeCast(success, perfect) {
     try { window.playSound('clear'); } catch {}
   }
 
-  cast.phase = 'CATCH';
-  cast.phaseT = isLegendary ? 1.8 : 1.2;
+    cast.phase = 'CATCH';
+    cast.phaseT = isLegendary ? 1.8 : 1.2;
+  });
 }
 
 // ============================================================
@@ -2851,7 +2911,10 @@ function handleSpace(down) {
       cast.slackLocked = false;
       cast.lastProg = 0;
 
-      setFishingPhase('REEL');
+      // v17: BITE 결과 화면 (0.8초 or 클릭 → REEL)
+      showPhaseFlash('BITE_OK', 800, () => {
+        setFishingPhase('REEL');
+      });
     } else {
       finalizeCast(false, false);
     }

@@ -153,6 +153,10 @@
         </div>
         <div id="phase-reel" class="phase-pane hidden">
           <div class="reel-area">
+            <div class="reel-labels">
+              <div class="reel-tension-label">🐟 낚시줄 텐션 (이게 끊기면 실패)</div>
+              <div class="reel-progress-label">📈 물고기 끌어올림 (100% 차면 잡음!)</div>
+            </div>
             <div class="reel-tension">
               <div class="reel-tension-fill" id="tension-fill"></div>
               <div class="reel-tension-zone" id="tension-zone"></div>
@@ -162,11 +166,27 @@
             <div class="reel-state" id="reel-state">대기</div>
             <div class="reel-time" id="reel-time">12.0s</div>
           </div>
-          <p class="phase-hint">누르고 있으면 릴 감음 / 떼면 멈춤</p>
+          <p class="phase-hint">🐟 텐션은 <strong>초록(안전) 구간</strong>에!<br/>📈 진행도 <strong>100%</strong> 도달 시 물고기 확보!</p>
+        </div>
+        <div id="phase-bite-ok" class="phase-pane phase-result-flash hidden">
+          <div class="phase-flash-emoji">🐟</div>
+          <div class="phase-flash-title">BITE!</div>
+          <div class="phase-flash-sub">입질이 왔어요! 릴 시작</div>
+        </div>
+        <div id="phase-reel-ok" class="phase-pane phase-result-flash hidden">
+          <div class="phase-flash-emoji">🎣</div>
+          <div class="phase-flash-title">REEL 성공!</div>
+          <div class="phase-flash-sub" id="reel-ok-sub">물고기를 끌어올렸어요</div>
+        </div>
+        <div id="phase-miss" class="phase-pane phase-result-flash hidden">
+          <div class="phase-flash-emoji">💨</div>
+          <div class="phase-flash-title" id="miss-title">놓침!</div>
+          <div class="phase-flash-sub" id="miss-sub">라인이 끊어졌어요</div>
         </div>
         <div id="phase-result" class="phase-pane hidden">
           <div class="result-line" id="fish-line">…</div>
           <div class="result-score" id="fish-score">+0</div>
+          <p class="phase-hint phase-next-hint">👆 탭하면 다음 캐스팅</p>
         </div>
       </div>
     </section>
