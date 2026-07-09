@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+
+# AdSense 크롤러는 명시적으로 허용
+User-agent: Mediapartners-Google
+Allow: /
+
+# AI 학습용 크롤러 차단 (AdSense는 영향 없음, 콘텐츠 보호 목적)
+User-agent: GPTBot
+Disallow: /
+User-agent: ClaudeBot
+Disallow: /
+User-agent: CCBot
+Disallow: /
+
+# Sitemap 위치 명시
+Sitemap: https://fish-game-six.vercel.app/sitemap.xml
