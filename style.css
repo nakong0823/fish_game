@@ -198,13 +198,13 @@ button {
 .path-board {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 16px;
+  gap: 12px;
   padding: 20px 16px;
   background: linear-gradient(180deg, #0c4a6e 0%, #082f49 100%);
   border-radius: 16px;
   border: 2px solid var(--line);
   position: relative;
-  overflow-x: auto;
+  overflow: hidden;             /* 사장님 요청: 가로/세로 스크롤 완전 제거 */
   max-width: 720px;
   margin: 0 auto;
 }
@@ -212,19 +212,21 @@ button {
   display: flex; flex-direction: column; gap: 12px;
   align-items: stretch;
 }
+/* 미래 컬럼(현재+2 이상)은 통째로 숨김 — 사장님 요청: 3개 카드만 */
+.path-col.is-future-col { display: none; }
 .path-node {
   background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
   border: 2px solid var(--line);
   border-radius: 12px;
-  padding: 12px 6px;
+  padding: 20px 10px;          /* 12px 6px → 20px 10px (크게) */
   text-align: center;
-  font-size: 12px;
+  font-size: 14px;              /* 12px → 14px (글자 크게) */
   color: var(--ink-1);
   cursor: default;
   position: relative;
   transition: transform .15s, box-shadow .2s, border-color .2s;
-  min-height: 80px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  min-height: 140px;            /* 80px → 140px (카드 크게) */
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
 }
 .path-node::before {
   content: '';
@@ -251,9 +253,9 @@ button {
   background: linear-gradient(180deg, #78350f 0%, #422006 100%);
   box-shadow: 0 0 16px rgba(245, 158, 11, .35);
 }
-.path-node-icon { font-size: 28px; line-height: 1; }
+.path-node-icon { font-size: 40px; line-height: 1; }   /* 28px → 40px (이모지 크게) */
 .path-node-name {
-  font-size: 11px;
+  font-size: 14px;             /* 11px → 14px (라벨 크게) */
   color: var(--ink-0);
   font-weight: 700;
   text-transform: uppercase;
@@ -290,10 +292,9 @@ button {
 .path-node.is-next:active {
   transform: translateY(-2px) scale(1.02);
 }
+/* 사장님 요청: 잠긴 노드 완전 숨김 */
 .path-node.is-locked {
-  opacity: 0.3;
-  cursor: not-allowed;
-  filter: grayscale(0.8);
+  display: none !important;
 }
 .path-node-badge {
   position: absolute;
@@ -2560,6 +2561,18 @@ body::before {
 .path-node:hover .path-node-desc {
   display: block;
 }
+/* 사장님 요청: 선택 가능한 다음 노드(is-next)는 설명 항상 표시 */
+.path-node.is-next .path-node-desc {
+  display: block;
+  position: static;
+  transform: none;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  white-space: normal;
+  margin-top: 6px;
+  width: 90%;
+  pointer-events: none;
+}
 
 /* REEL 상태등 강조 (저항/이완 시각화) */
 .reel-state {
@@ -2747,6 +2760,7 @@ body.time-night::after {
     grid-template-columns: repeat(2, 1fr);
   }
   .codex-grid { grid-template-columns: repeat(3, 1fr); }
+  .path-board { grid-template-columns: repeat(3, 1fr); }  /* 사장님 요청: 작은 화면에서 3컬럼 */
 }
 @media (max-width: 600px) {
   .hub-grid, .reward-cards, .shop-body, .meta-shop-body {
@@ -2757,11 +2771,13 @@ body.time-night::after {
   .reel-area { gap: 12px; flex-direction: column; }
   .reel-labels { flex-direction: row; gap: 8px; text-align: center; font-size: 11px; }
   .reel-progress { width: 160px; }
+  .path-board { grid-template-columns: repeat(2, 1fr); }  /* 사장님 요청: 모바일 2컬럼 */
 }
 @media (max-width: 450px) {
   .title-h1 { font-size: 32px; }
   .cast-net { width: 140px; height: 140px; }
   .reel-tension { width: 32px; height: 220px; }
+  .path-board { grid-template-columns: 1fr; }  /* 사장님 요청: 초소형 1컬럼 */
 }
 /* 모바일: background-attachment:fixed 성능 이슈 회피 */
 @media (max-width: 900px), (hover: none) {
